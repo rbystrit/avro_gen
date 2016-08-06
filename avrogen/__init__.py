@@ -107,7 +107,7 @@ def write_files(schema_json, output_folder):
 
     with open(os.path.join(output_folder, "__init__.py"), "a+") as f:
         writer = TabbedWriter(f)
-        writer.write('from .schema_classes import SchemaClasses')
+        writer.write('\n\nfrom .schema_classes import SchemaClasses')
         writer.write('\nfrom avro.io import DatumReader')
 
         writer.write('\n\n\nclass SpecificDatumReader(DatumReader):')
