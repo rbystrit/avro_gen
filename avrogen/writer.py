@@ -68,41 +68,21 @@ class TabbedWriter(object):
     def indent(self):
         return TabbedWriter.Indent(self)
 
-
-def get_field_default(field):
+def get_primitive_field_initializer(field_schema):
     """
-    
-    :param schema.Field field: 
-    :return: 
-    """
-    
-    if not field.has_default:
-        return 'None'
-    field_type = field.type
-    while isinstance(field_type, schema.UnionSchema):
-        field_type = field_type.schemas[0]
 
-    if isinstance(field_type, schema.PrimitiveSchema):
-        if field_type == 'null':
-            return 'None'
-        elif field_type in ('bytes', 'string'):
-            return "'%s'".format(field.default)
-        return str(field.default)
-    elif isinstance(field_type, schema.FixedSchema):
-        return "'%s'".format(field.default)
-    elif isinstance(field_type, schema.RecordSchema):
-        return field_type.fullname + "(json.loads('''" + json.dumps(field.default) + "'''))"
-    elif isinstance(field_type, schema.EnumSchema):
-        return field_type.fullname + "." + field.default
-    elif isinstance(field_type, (schema.ArraySchema, schema.MapSchema)):
-        if isinstance(field_type.items, schema.PrimitiveSchema):
-            return "json.loads('''" + json.dumps(field.default) + "''')"
+    :param schema.PrimitiveSchema field_schema:
+    :return:
+    """
+
+    if field_schema.fullname == 'null':
         return 'None'
+    return get_field_type_name(field_schema) + "()"
 
 
 def get_field_type_name(field_schema):
     """
-    :param schema.Schema field:
+    :param schema.Schema field_schema:
     :return:
     """
 
@@ -127,6 +107,21 @@ def get_field_type_name(field_schema):
         return ''
 
 
+def find_type_of_default(field_type):
+    """
+
+    :param schema.Schema field_type:
+    :return:
+    """
+
+    if isinstance(field_type, schema.UnionSchema):
+        type_, nullable =  find_type_of_default(field_type.schemas)
+        nullable = nullable or any(f for f in field_type.schemas if isinstance(f, schema.PrimitiveSchema) and f.fullname == 'null')
+        return type_, nullable
+    elif isinstance(field_type, schema.PrimitiveSchema):
+        return field_type, field_type.fullname == 'null'
+    else:
+        return field_type, False
 
 def write_record(record, writer):
     """
@@ -146,18 +141,74 @@ def write_record(record, writer):
         writer.write('\n')
         writer.write('"""\n\n')
 
-        writer.write('def __init__(self, inner_dict=None):')
+        writer.write('RECORD_SCHEMA = NAMES.get_name("%s", "%s")' % (record.name, record.namespace))
+
+        writer.write('\n\n\ndef __init__(self, inner_dict=None):')
         with writer.indent():
             writer.write('\n')
-            writer.write('super(SchemaClasses.{name}Class, self).__init__(inner_dict)\n'.format(name=record.fullname))
-        writer.write('\n')
-        for field in record.fields:  # type: schema.Field
-            writer.write('''@property
+            writer.write('super(SchemaClasses.{name}Class, self).__init__(inner_dict)'.format(name=record.fullname))
+
+            writer.write('\nif inner_dict is None:')
+            with writer.indent():
+                something_written = False
+                i = 0
+                for field in record.fields:
+                    default_type, nullable = find_type_of_default(field.type)
+                    default_written = False
+                    if field.has_default:
+                        if isinstance(default_type, schema.RecordSchema):
+                            writer.write('\nself.{name} = SchemaClasses.{full_name}(SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].default)'
+                                         .format(name = field.name, full_name=default_type.fullname, idx=i))
+                            default_written = True
+                        elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
+                            writer.write('\nself.{name} = SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].default'
+                                         .format(name = field.name, full_name=default_type.fullname, idx=i))
+                            default_written = True
+
+                    if not default_written:
+                        default_written = True
+                        if nullable:
+                            writer.write('\nself.{name} = None'.format(name = field.name))
+                        elif isinstance(default_type, schema.PrimitiveSchema):
+                            writer.write('\nself.{name} = {default}'.format(name = field.name,
+                                                                    default=get_primitive_field_initializer(field.type)))
+                        elif isinstance(default_type, schema.EnumSchema):
+                            writer.write('\nself.{name} = SchemaClasses.{full_name}Class.{sym}'
+                                         .format(name = field.name, full_name=default_type.fullname,
+                                                 sym = default_type.symbols[0]))
+                        elif isinstance(default_type, schema.MapSchema):
+                            writer.write('\nself.{name} = dict()'.format(name = field.name))
+                        elif isinstance(default_type, schema.ArraySchema):
+                            writer.write('\nself.{name} = list()'.format(name = field.name))
+                        elif isinstance(default_type, schema.FixedSchema):
+                            writer.write('\nself.{name} = str()'.format(name = field.name))
+                        elif isinstance(default_type, schema.RecordSchema):
+                            writer.write('\nself.{name} = SchemaClasses.{full_name}Class()'
+                                         .format(name = field.name, full_name=default_type.fullname))
+                        else:
+                            default_written = False
+                    something_written = something_written or default_written
+                    i += 1
+
+                if not something_written:
+                    writer.write('\npass')
+        write_fields(record, writer)
+
+
+def write_fields(record, writer):
+    writer.write('\n\n')
+    for field in record.fields:  # type: schema.Field
+        write_field(field, writer)
+
+
+def write_field(field, writer):
+    writer.write('''
+@property
 def {name}(self):
     """
     :rtype: {ret_type_name}
     """
-    return self._inner_dict.get('{name}', {default})
+    return self._inner_dict.get('{name}')
 
 @{name}.setter
 def {name}(self, value):
@@ -166,7 +217,7 @@ def {name}(self, value):
     #"""
     self._inner_dict['{name}'] = value
 
-'''.format(name=field.name, default=get_field_default(field), ret_type_name=get_field_type_name(field.type)))
+'''.format(name=field.name, ret_type_name=get_field_type_name(field.type)))
 
 
 def write_enum(enum, writer):

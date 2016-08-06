@@ -127,6 +127,15 @@ class GeneratorTestCase(unittest.TestCase):
         kb = common_ns.AvroKnowableBoolean()
         kop = common_ns.AvroKnowableOptionString()
 
+        self.assertIsNotNone(twitter_ns.AvroTweet.RECORD_SCHEMA)
+        self.assertIsNotNone(twitter_ns.AvroTweetMetadata.RECORD_SCHEMA)
+        self.assertIsNotNone(common_ns.AvroPoint.RECORD_SCHEMA)
+        self.assertIsNotNone(common_ns.AvroDateTime.RECORD_SCHEMA)
+        self.assertIsNotNone(common_ns.AvroKnowableOptionString.RECORD_SCHEMA)
+        self.assertIsNotNone(common_ns.AvroKnowableListString.RECORD_SCHEMA)
+        self.assertIsNotNone(common_ns.AvroKnowableBoolean.RECORD_SCHEMA)
+        self.assertIsNotNone(common_ns.AvroKnowableOptionString.RECORD_SCHEMA)
+
         self.assertTrue(hasattr(tweet, 'ID'))
         self.assertTrue(hasattr(tweet, 'text'))
         self.assertTrue(hasattr(tweet, 'authorScreenName'))
@@ -192,40 +201,30 @@ class GeneratorTestCase(unittest.TestCase):
         tweet.createdAt = AvroDateTime()
         tweet.createdAt.dateTimeString = "2016-10-10 10:10:10"
 
-        tweet.metadata = AvroTweetMetadata()
-        tweet.metadata.inReplyToScreenName = AvroKnowableOptionString()
         tweet.metadata.inReplyToScreenName.known = False
         tweet.metadata.inReplyToScreenName.data = "What?"
 
-        tweet.metadata.mentionedScreenNames = AvroKnowableListString()
         tweet.metadata.mentionedScreenNames.known = True
         tweet.metadata.mentionedScreenNames.data = ['Avro', 'Gen', 'Test']
 
-        tweet.metadata.links = AvroKnowableListString()
         tweet.metadata.links.known = False
         tweet.metadata.links.data = []
 
-        tweet.metadata.hashtags = AvroKnowableListString()
         tweet.metadata.hashtags.known = False
         tweet.metadata.hashtags.data = ['###']
 
-        tweet.metadata.isBareCheckin = AvroKnowableBoolean()
         tweet.metadata.isBareCheckin.known = False
         tweet.metadata.isBareCheckin.data = True
 
-        tweet.metadata.isBareRetweet = AvroKnowableBoolean()
         tweet.metadata.isBareRetweet.known = True
         tweet.metadata.isBareRetweet.data = False
 
-        tweet.metadata.isRetweet = AvroKnowableBoolean()
         tweet.metadata.isRetweet.known = True
         tweet.metadata.isRetweet.data = True
 
-        tweet.metadata.venueID = AvroKnowableOptionString()
         tweet.metadata.venueID.known = False
         tweet.metadata.venueID.data = None
 
-        tweet.metadata.venuePoint = AvroKnowableOptionPoint()
         tweet.metadata.venuePoint.known = False
         tweet.metadata.venuePoint.data = None
 
@@ -236,7 +235,7 @@ class GeneratorTestCase(unittest.TestCase):
             df.close()
 
         with open(tmp_file, "rb") as f:
-            df = datafile.DataFileReader(f, SpecificDatumReader(readers_schema=schema.parse(schema_json)))
+            df = datafile.DataFileReader(f, SpecificDatumReader())
             tweet1 = df.next()
             df.close()
 

@@ -86,7 +86,7 @@ The contents of OUTPUT_DIR/com/twitter/avro/\_\_init\_\_.py will be:
 So in your code you will be able to say:
     
     from OUTPUT_DIR.com.twitter.avro import tweet
-    from OUTPUT_DIR import SpecificDatumReader as TweetReader
+    from OUTPUT_DIR import SpecificDatumReader as TweetReader, SCHEMA as your_schema
     from avro import datafile, io
     my_tweet = tweet()
     
