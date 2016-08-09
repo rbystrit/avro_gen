@@ -19,7 +19,7 @@ regular dictionary.
 #####Usage:
     schema_json = "....."
     output_directory = "....."
-    from avrogen import write_files
+    from avrogen import write_schema_files
     
     write_schema_files(schema_json, output_directory)
     
@@ -102,3 +102,18 @@ So in your code you will be able to say:
         reader.close()
         
        
+###Avro protocol support
+
+Avro protocol support is implemented the same way as schema support. To generate classes 
+for a protocol:
+
+    protocol_json = "....."
+    output_directory = "....."
+    from avrogen import write_protocol_files
+    
+    write_protocol_files(protocol_json, output_directory)
+    
+The structure of the generated code will be exactly same as for schema, but in addition to
+regular types, *Request types will be generated in the root namespace of the protocol for each 
+each message defined.
+
