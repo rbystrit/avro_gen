@@ -7,6 +7,13 @@ import shutil
 from avro import io
 from avro import datafile, schema
 
+import avrogen.schema
+import avrogen.protocol
+import logging
+import sys
+
+#logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+#logging.getLogger('avrogen.schema').setLevel(logging.DEBUG)
 
 class GeneratorTestCase(unittest.TestCase):
     TEST_NUMBER = 1
@@ -46,7 +53,7 @@ class GeneratorTestCase(unittest.TestCase):
 
     def test_simple_record(self):
         schema_json = self.read_schema('simple_record.json')
-        avrogen.write_files(schema_json, self.output_dir)
+        avrogen.schema.write_schema_files(schema_json, self.output_dir)
         root_module = importlib.import_module(self.test_name)
         schema_classes = importlib.import_module('.schema_classes', self.test_name)
 
@@ -59,7 +66,7 @@ class GeneratorTestCase(unittest.TestCase):
 
     def test_record_with_array(self):
         schema_json = self.read_schema('record_with_array.json')
-        avrogen.write_files(schema_json, self.output_dir)
+        avrogen.schema.write_schema_files(schema_json, self.output_dir)
         root_module = importlib.import_module(self.test_name)
         schema_classes = importlib.import_module('.schema_classes', self.test_name)
 
@@ -73,7 +80,7 @@ class GeneratorTestCase(unittest.TestCase):
 
     def test_recursive_record(self):
         schema_json = self.read_schema('recursive_record.json')
-        avrogen.write_files(schema_json, self.output_dir)
+        avrogen.schema.write_schema_files(schema_json, self.output_dir)
         root_module = importlib.import_module(self.test_name)
         schema_classes = importlib.import_module('.schema_classes', self.test_name)
 
@@ -95,7 +102,7 @@ class GeneratorTestCase(unittest.TestCase):
 
     def test_enum(self):
         schema_json = self.read_schema('enum.json')
-        avrogen.write_files(schema_json, self.output_dir)
+        avrogen.schema.write_schema_files(schema_json, self.output_dir)
         root_module = importlib.import_module(self.test_name)
         importlib.import_module('.schema_classes', self.test_name)
 
@@ -103,7 +110,7 @@ class GeneratorTestCase(unittest.TestCase):
 
     def test_tweet(self):
         schema_json = self.read_schema('tweet.json')
-        avrogen.write_files(schema_json, self.output_dir)
+        avrogen.schema.write_schema_files(schema_json, self.output_dir)
         root_module = importlib.import_module(self.test_name)
         importlib.import_module('.schema_classes', self.test_name)
         twitter_ns = importlib.import_module('.com.bifflabs.grok.model.twitter.avro', self.test_name)
@@ -173,13 +180,106 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertTrue(hasattr(kop, 'known'))
         self.assertTrue(hasattr(kop, 'data'))
 
+    def test_simple_protocol(self):
+        schema_json = self.read_schema('sample.avpr')
+        avrogen.protocol.write_protocol_files(schema_json, self.output_dir)
+
+        root_module = importlib.import_module(self.test_name)
+        importlib.import_module('.schema_classes', self.test_name)
+        sample_ns = importlib.import_module('.org.sample', self.test_name)
+        self.assertTrue(hasattr(sample_ns, 'Account'))
+        self.assertTrue(hasattr(sample_ns, 'addAccountRequest'))
+
+        a = sample_ns.Account()
+        r = sample_ns.addAccountRequest()
+
+        self.assertTrue(hasattr(a, 'id'))
+        self.assertTrue(hasattr(a, 'name'))
+        self.assertTrue(hasattr(a, 'description'))
+
+        self.assertTrue(hasattr(r, 'name'))
+        self.assertTrue(hasattr(r, 'description'))
+
+    def test_simple_protocol_inline_response(self):
+        schema_json = self.read_schema('sample_inline_response_type.avpr')
+        avrogen.protocol.write_protocol_files(schema_json, self.output_dir)
+
+        root_module = importlib.import_module(self.test_name)
+        importlib.import_module('.schema_classes', self.test_name)
+        sample_ns = importlib.import_module('.org.sample', self.test_name)
+        self.assertTrue(hasattr(sample_ns, 'Account'))
+        self.assertTrue(hasattr(sample_ns, 'addAccountRequest'))
+
+        a = sample_ns.Account()
+        r = sample_ns.addAccountRequest()
+
+        self.assertTrue(hasattr(a, 'id'))
+        self.assertTrue(hasattr(a, 'name'))
+        self.assertTrue(hasattr(a, 'description'))
+
+        self.assertTrue(hasattr(r, 'name'))
+        self.assertTrue(hasattr(r, 'description'))
+
+    def test_simple_protocol_diff_ns(self):
+        schema_json = self.read_schema('sample_diff_ns.avpr')
+        avrogen.protocol.write_protocol_files(schema_json, self.output_dir)
+
+        root_module = importlib.import_module(self.test_name)
+        importlib.import_module('.schema_classes', self.test_name)
+        sample_ns = importlib.import_module('.org.sample', self.test_name)
+        com_ns = importlib.import_module('.com.sample', self.test_name)
+        net_ns = importlib.import_module('.net.sample', self.test_name)
+        self.assertFalse(hasattr(sample_ns, 'Account'))
+        self.assertTrue(hasattr(com_ns, 'Account'))
+        self.assertTrue(hasattr(net_ns, 'Account'))
+        self.assertTrue(hasattr(sample_ns, 'addAccountRequest'))
+
+        a = com_ns.Account()
+        r = sample_ns.addAccountRequest()
+
+        self.assertTrue(hasattr(a, 'id'))
+        self.assertTrue(hasattr(a, 'name'))
+        self.assertTrue(hasattr(a, 'description'))
+
+        self.assertTrue(hasattr(r, 'name'))
+        self.assertTrue(hasattr(r, 'description'))
+
+    def test_simple_protocol_empty_request(self):
+        schema_json = self.read_schema('sample_empty_request.avpr')
+        avrogen.protocol.write_protocol_files(schema_json, self.output_dir)
+
+        root_module = importlib.import_module(self.test_name)
+        importlib.import_module('.schema_classes', self.test_name)
+        sample_ns = importlib.import_module('.org.sample', self.test_name)
+        self.assertTrue(hasattr(sample_ns, 'Account'))
+        self.assertTrue(hasattr(sample_ns, 'addAccountRequest'))
+
+        a = sample_ns.Account()
+        r = sample_ns.addAccountRequest()
+
+        self.assertTrue(hasattr(a, 'id'))
+        self.assertTrue(hasattr(a, 'name'))
+        self.assertTrue(hasattr(a, 'description'))
+
+    def test_simple_protocol_null_response(self):
+        schema_json = self.read_schema('sample_null_response.avpr')
+        avrogen.protocol.write_protocol_files(schema_json, self.output_dir)
+
+        root_module = importlib.import_module(self.test_name)
+        importlib.import_module('.schema_classes', self.test_name)
+        sample_ns = importlib.import_module('.org.sample', self.test_name)
+        self.assertFalse(hasattr(sample_ns, 'Account'))
+        self.assertTrue(hasattr(sample_ns, 'addAccountRequest'))
+
+        r = sample_ns.addAccountRequest()
+
     def test_tweet_roundrip(self):
         schema_json = self.read_schema('tweet.json')
         output_name = os.path.join(os.path.dirname(__file__), 'twitter_schema')
         if os.path.isdir(output_name):
             shutil.rmtree(output_name)
 
-        avrogen.write_files(schema_json, output_name)
+        avrogen.schema.write_schema_files(schema_json, output_name)
         from twitter_schema.com.bifflabs.grok.model.twitter.avro import AvroTweet, AvroTweetMetadata
         from twitter_schema.com.bifflabs.grok.model.common.avro import AvroPoint, AvroDateTime, \
             AvroKnowableOptionString, AvroKnowableListString, AvroKnowableBoolean, AvroKnowableOptionPoint
@@ -291,7 +391,7 @@ class GeneratorTestCase(unittest.TestCase):
 
     def primitive_type_tester(self, schema_name):
         schema_json = self.read_schema(schema_name)
-        avrogen.write_files(schema_json, self.output_dir)
+        avrogen.schema.write_schema_files(schema_json, self.output_dir)
         importlib.import_module(self.test_name)
         schema_classes = importlib.import_module('.schema_classes', self.test_name)
 

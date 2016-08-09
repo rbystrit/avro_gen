@@ -17,7 +17,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='avro-gen',
-    version='0.1.0b1',
+    version='0.1.0b2',
 
     description='Avro record class and specific record reader generator',
     long_description=long_description,

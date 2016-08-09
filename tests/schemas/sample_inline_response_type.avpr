@@ -1,0 +1,45 @@
+{
+  "namespace": "org.sample",
+  "protocol": "AccountService",
+  "types": [
+  ],
+  "messages": {
+    "addAccount": {
+      "response": {
+        "name": "Account",
+        "fields": [
+          {
+            "name": "id",
+            "type": "long"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": [
+              "null",
+              "string"
+            ],
+            "default": null
+          }
+        ],
+        "type": "record"
+      },
+      "request": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      ]
+    }
+  }
+}

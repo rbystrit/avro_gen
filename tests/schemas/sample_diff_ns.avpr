@@ -1,0 +1,70 @@
+{
+  "namespace": "org.sample",
+  "protocol": "AccountService",
+  "types": [
+    {
+      "name": "Account",
+      "namespace": "com.sample",
+      "fields": [
+        {
+          "name": "id",
+          "type": "long"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": [
+            "null",
+            "string"
+          ],
+          "default": null
+        }
+      ],
+      "type": "record"
+    },
+    {
+      "name": "Account",
+      "namespace": "net.sample",
+      "fields": [
+        {
+          "name": "id",
+          "type": "long"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": [
+            "null",
+            "string"
+          ],
+          "default": null
+        }
+      ],
+      "type": "record"
+    }
+  ],
+  "messages": {
+    "addAccount": {
+      "response": "com.sample.Account",
+      "request": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      ]
+    }
+  }
+}

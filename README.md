@@ -21,7 +21,7 @@ regular dictionary.
     output_directory = "....."
     from avrogen import write_files
     
-    write_files(schema_json, output_directory)
+    write_schema_files(schema_json, output_directory)
     
 The generator will create output directory if it does not exist and put generated files there. 
 The generated files will be:
