@@ -11,6 +11,12 @@ from .protocol_writer import write_protocol_request
 
 
 def generate_protocol(protocol_json):
+    """
+    Generate content of the file which will contain concrete classes for RecordSchemas and requests contained
+    in the avro protocol
+    :param str protocol_json: JSON containing avro protocol
+    :return:
+    """
     proto = protocol.parse(protocol_json)
 
     schemas = []
@@ -112,6 +118,13 @@ def generate_protocol(protocol_json):
 
 
 def write_protocol_preamble(writer):
+    """
+    Writes a preamble for avro protocol implementation.
+    The preamble will contain a function which can load the protocol from the file
+    and a global PROTOCOL variable which will contain parsed protocol
+    :param writer:
+    :return:
+    """
     write_read_file(writer)
     writer.write('\nfrom avro import protocol as avro_protocol')
     writer.write('\n\ndef __get_protocol(file_name):')
@@ -122,6 +135,11 @@ def write_protocol_preamble(writer):
 
 
 def write_populate_schemas(writer):
+    """
+    Write code which will look through the protocol and populate __SCHEMAS dict which will be used by get_type_schema()
+    :param writer:
+    :return:
+    """
     writer.write('\nfor rec in PROTOCOL.types:')
     with writer.indent():
         writer.write('\n__SCHEMAS[rec.fullname] = rec')
@@ -134,6 +152,13 @@ def write_populate_schemas(writer):
 
 
 def write_protocol_files(protocol_json, output_folder):
+    """
+    Generates concrete classes for RecordSchemas and requests and a SpecificReader for types and messages contained
+    in the avro protocol.
+    :param str protocol_json: JSON containing avro protocol
+    :param str output_folder: Folder to write generated files to.
+    :return:
+    """
     proto_py, record_names, request_names = generate_protocol(protocol_json)
     names = sorted(list(record_names) + list(request_names))
     if not os.path.isdir(output_folder):
@@ -155,6 +180,12 @@ def write_protocol_files(protocol_json, output_folder):
 
 
 def write_specific_reader(record_types, output_folder):
+    """
+    Write specific reader implementation for a protocol
+    :param list[avro.schema.RecordSchema] record_types:
+    :param output_folder:
+    :return:
+    """
     with open(os.path.join(output_folder, "__init__.py"), "a+") as f:
         writer = TabbedWriter(f)
         writer.write('\n\nfrom .schema_classes import SchemaClasses, PROTOCOL as my_proto, get_schema_type')
@@ -164,6 +195,14 @@ def write_specific_reader(record_types, output_folder):
 
 
 def write_namespace_modules(ns_dict, request_names, output_folder):
+    """
+    Writes content of the generated namespace modules. A python module will be created for each namespace
+    and will import concrete schema classes from SchemaClasses
+    :param ns_dict:
+    :param request_names:
+    :param output_folder:
+    :return:
+    """
     for ns in ns_dict.iterkeys():
         with open(os.path.join(output_folder, ns.replace('.', os.path.sep), "__init__.py"), "w+") as f:
             currency = '.'

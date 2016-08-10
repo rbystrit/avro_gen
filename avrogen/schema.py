@@ -17,8 +17,8 @@ logger.setLevel(logging.INFO)
 
 def generate_schema(schema_json):
     """
-    Generates files for given avro schema
-    :param str schema_json:
+    Generate file containing concrete classes for RecordSchemas in given avro schema json
+    :param str schema_json: JSON representing avro schema
     :return Dict[str, str]:
     """
 
@@ -61,6 +61,12 @@ def generate_schema(schema_json):
 
 
 def write_schema_preamble(writer):
+    """
+    Writes a schema-specific preamble: __get_names_and_schema() which is used by concrete classes to resolve
+    their own RecordSchema
+    :param writer:
+    :return:
+    """
     write_read_file(writer)
     writer.write('\n\ndef __get_names_and_schema(file_name):')
     with writer.indent():
@@ -71,10 +77,22 @@ def write_schema_preamble(writer):
 
 
 def write_populate_schemas(writer):
+    """
+    Writes out a __SCHEMAS dict which contains all RecordSchemas by their full name. Used by get_schema_type
+    :param writer:
+    :return:
+    """
     writer.write('\n__SCHEMAS = dict((n.fullname, n) for n in __NAMES.names.itervalues())')
 
 
 def write_namespace_modules(ns_dict, output_folder):
+    """
+    Writes content of the generated namespace modules. A python module will be created for each namespace
+    and will import concrete schema classes from SchemaClasses
+    :param ns_dict:
+    :param output_folder:
+    :return:
+    """
     for ns in ns_dict.iterkeys():
         with open(os.path.join(output_folder, ns.replace('.', os.path.sep), "__init__.py"), "w+") as f:
             currency = '.'
@@ -86,6 +104,12 @@ def write_namespace_modules(ns_dict, output_folder):
 
 
 def write_specific_reader(record_types, output_folder):
+    """
+    Writes specific reader for a avro schema into generated root module
+    :param record_types:
+    :param output_folder:
+    :return:
+    """
     with open(os.path.join(output_folder, "__init__.py"), "a+") as f:
         writer = TabbedWriter(f)
         writer.write('\n\nfrom .schema_classes import SchemaClasses, SCHEMA as my_schema, get_schema_type')
@@ -95,6 +119,12 @@ def write_specific_reader(record_types, output_folder):
 
 
 def write_schema_files(schema_json, output_folder):
+    """
+    Generates concrete classes, namespace modules, and a SpecificRecordReader for a given avro schema
+    :param str schema_json: JSON containing avro schema
+    :param str output_folder: Folder in which to create generated files
+    :return:
+    """
     schema_py, names = generate_schema(schema_json)
     names = sorted(names)
 

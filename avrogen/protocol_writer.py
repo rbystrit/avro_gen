@@ -4,10 +4,10 @@ from .core_writer import write_defaults, write_fields
 
 def write_protocol_request(message, namespace, writer):
     """
-
-    :param avro.protocol.Message message:
-    :param TabbedWriter writer:
-    :param str namespace:
+    Write concrete class for a protocol request
+    :param avro.protocol.Message message: Message whose request to write
+    :param TabbedWriter writer: writer to write to
+    :param str namespace: protocol's namespace
     :return:
     """
 

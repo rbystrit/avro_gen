@@ -3,8 +3,36 @@ import os
 from avro import schema
 from . import namespace as ns_
 
+PRIMITIVE_TYPES = {
+    'null',
+    'boolean',
+    'int',
+    'long',
+    'float',
+    'double',
+    'bytes',
+    'string'
+}
+__PRIMITIVE_TYPE_MAPPING = {
+    'null': '',
+    'boolean': bool,
+    'int': int,
+    'long': long,
+    'float': float,
+    'double': float,
+    'bytes': str,
+    'string': unicode,
+}
+
 
 def write_defaults(record, writer, my_full_name=None):
+    """
+    Write concrete record class's constructor part which initializes fields with default values
+    :param schema.RecordSchema record: Avro RecordSchema whose class we are generating
+    :param TabbedWriter writer: Writer to write to
+    :param str my_full_name: Full name of the RecordSchema we are writing. Should only be provided for protocol requests.
+    :return:
+    """
     i = 0
     my_full_name = my_full_name or record.fullname
 
@@ -52,12 +80,24 @@ def write_defaults(record, writer, my_full_name=None):
 
 
 def write_fields(record, writer):
+    """
+    Write field definitions for a given RecordSchema
+    :param schema.RecordSchema record: Avro RecordSchema we are generating
+    :param TabbedWriter writer: Writer to write to
+    :return:
+    """
     writer.write('\n\n')
     for field in record.fields:  # type: schema.Field
         write_field(field, writer)
 
 
 def write_field(field, writer):
+    """
+    Write a single field definition
+    :param field:
+    :param writer:
+    :return:
+    """
     writer.write('''
 @property
 def {name}(self):
@@ -76,31 +116,10 @@ def {name}(self, value):
 '''.format(name=field.name, ret_type_name=get_field_type_name(field.type)))
 
 
-PRIMITIVE_TYPES = {
-    'null',
-    'boolean',
-    'int',
-    'long',
-    'float',
-    'double',
-    'bytes',
-    'string'
-}
-__PRIMITIVE_TYPE_MAPPING = {
-    'null': '',
-    'boolean': bool,
-    'int': int,
-    'long': long,
-    'float': float,
-    'double': float,
-    'bytes': str,
-    'string': unicode,
-}
-
-
 def get_primitive_field_initializer(field_schema):
     """
-
+    Gets a python code string which represents a type initializer for a primitive field.
+    Used for required fields where no default is provided. Output will look like "int()" or similar
     :param schema.PrimitiveSchema field_schema:
     :return:
     """
@@ -112,8 +131,9 @@ def get_primitive_field_initializer(field_schema):
 
 def get_field_type_name(field_schema):
     """
+    Gets a python type-hint for a given schema
     :param schema.Schema field_schema:
-    :return:
+    :return: String containing python type hint
     """
 
     if isinstance(field_schema, schema.PrimitiveSchema):
@@ -139,7 +159,7 @@ def get_field_type_name(field_schema):
 
 def find_type_of_default(field_type):
     """
-
+    Returns full name of an avro type of the field's default value
     :param schema.Schema field_type:
     :return:
     """
@@ -157,9 +177,10 @@ def find_type_of_default(field_type):
 
 def start_namespace(current, target, writer):
     """
-
-    :param tuple[str] current:
-    :param tuple[str] target:
+    Writes a new class corresponding to the target namespace to the schema file and
+     closes the prior namespace
+    :param tuple[str] current: Current namespace
+    :param tuple[str] target: Target namespace we need to generate classes for
     :param TabbedWriter writer:
     :return:
     """
@@ -178,6 +199,11 @@ def start_namespace(current, target, writer):
 
 
 def write_preamble(writer):
+    """
+    Writes a preamble of the file containing schema classes
+    :param writer:
+    :return:
+    """
     writer.write('import json\n')
     writer.write('import os.path\n')
     writer.write('from avrogen.dict_wrapper import DictWrapper\n')
@@ -185,6 +211,11 @@ def write_preamble(writer):
 
 
 def write_read_file(writer):
+    """
+    Write a function which reads our schema or protocol
+    :param writer:
+    :return:
+    """
     writer.write('\n\ndef __read_file(file_name):')
     with writer.indent():
         writer.write('\nwith open(file_name, "r") as f:')
@@ -194,7 +225,7 @@ def write_read_file(writer):
 
 def write_get_schema(writer):
     """
-    Write get_schema_type
+    Write get_schema_type which is used by concrete classes to resolve their own RecordSchemas
     :param writer:
     :return:
     """
@@ -205,6 +236,12 @@ def write_get_schema(writer):
 
 
 def write_reader_impl(record_types, writer):
+    """
+    Write specific reader implementation
+    :param list[schema.RecordSchema] record_types:
+    :param writer:
+    :return:
+    """
     writer.write('\n\n\nclass SpecificDatumReader(DatumReader):')
     with writer.indent():
         writer.write('\nSCHEMA_TYPES = {')
@@ -228,6 +265,14 @@ def write_reader_impl(record_types, writer):
 
 
 def generate_namespace_modules(names, output_folder):
+    """
+    Generate python modules corresponding to schema/protocol namespaces.
+
+    :param names:
+    :param output_folder:
+    :return: Dictinoary of (namespace, list(name))
+    :rtype: dict[str, list[str]]
+    """
     ns_dict = {}
     for name in names:
         name_parts = name.split('.')
