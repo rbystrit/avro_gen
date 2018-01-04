@@ -1,6 +1,8 @@
 AVRO-GEN
 ========
 
+[![Build Status](https://travis-ci.org/rbystrit/avro_gen.svg?branch=master)](https://travis-ci.org/rbystrit/avro_gen)
+[![codecov](https://codecov.io/gh/rbystrit/avro_gen/branch/master/graph/badge.svg)](https://codecov.io/gh/rbystrit/avro_gen)
 ##### Avro record class and specific record reader generator.
 
 Current Avro implementation in Python is completely typelss and operates on dicts. 
