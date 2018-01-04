@@ -120,3 +120,56 @@ regular types, *Request types will be generated in the root namespace of the pro
 each message defined.
 
 ### Logical types support
+
+Avrogen implements logical types on top of standard avro package and supports generation of 
+classes thus typed. To enable logical types support, pass **use_logical_types=True** to schema 
+and protocol generators. If custom logical types are implemented and such types map to types 
+other than simple types or datetime.* or decimal.* then pass **custom_imports** parameter to 
+generator functions so that your types are imported. Types implemented out of the box are:
+
+- decimal (using string representation only)
+- date
+- time-millis
+- time-micros
+- timestamp-millis
+- timestamp-micros
+
+To register your custom logical type, inherit from avrogen.logical.LogicalTypeProcessor, implement
+abstract methods, and add an instance to avrogen.logical.DEFAULT_LOGICAL_TYPES dictionary under the 
+name of your logical type. A sample implementation looks as follows:
+
+    class DateLogicalTypeProcessor(LogicalTypeProcessor):
+        _matching_types = {'int', 'long', 'float', 'double'}
+    
+        def can_convert(self, writers_schema):
+            return isinstance(writers_schema, schema.PrimitiveSchema) and writers_schema.type == 'int'
+    
+        def convert(self, value):
+            if not isinstance(value, datetime.date):
+                raise Exception("Wrong type for date conversion")
+            return (value - EPOCH_DATE).total_seconds() // SECONDS_IN_DAY
+    
+        def convert_back(self, writers_schema, readers_schema, value):
+            return EPOCH_DATE + datetime.timedelta(days=int(value))
+    
+        def does_match(self, writers_schema, readers_schema):
+            if isinstance(writers_schema, schema.PrimitiveSchema):
+                if writers_schema.type in DateLogicalTypeProcessor._matching_types:
+                    return True
+            return False
+    
+        def typename(self):
+            return 'datetime.date'
+    
+        def initializer(self, value=None):
+            return ((
+                        'logical.DateLogicalTypeProcessor().convert_back(None, None, %s)' % value) if value is not None
+                    else 'datetime.datetime.today().date()')
+
+To read/write data with logical type support, use generated SpecificDatumReader 
+and a LogicalDatumWriter from avro.logical.
+ 
+
+
+
+    
