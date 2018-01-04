@@ -132,7 +132,7 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertEquals(p.convert(pytz.UTC.localize(datetime.datetime(2015, 5, 1, microsecond=123456))),
                           1430438400123456)
 
-        offset_res = 1430452800123456
+        offset_res = 1430452800123456L
         self.assertEquals(p.convert(datetime.datetime(2015, 5, 1, 0,0,0, microsecond=123456)), offset_res)
         with self._exception():
             p.convert('123456')
@@ -161,7 +161,7 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertEquals(p.convert(datetime.datetime(2015, 5, 1, microsecond=123456, tzinfo=pytz.UTC)),
                           1430438400123)
 
-        offset_res = 1430452800123
+        offset_res = 1430452800123L
         self.assertEquals(p.convert(datetime.datetime(2015, 5, 1, microsecond=123456)), offset_res)
         with self._exception():
             p.convert('123456')

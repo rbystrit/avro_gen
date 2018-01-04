@@ -21,8 +21,7 @@ class GeneratorTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.SCHEMA_DIR = os.path.join(os.path.dirname(__file__), 'schemas')
-        cls.TMP_DIR = os.path.join(os.environ.get('TEMP') or os.environ.get('TMP') or os.environ.get('TMPDIR'),
-                                   'avrogen_tests')
+        cls.TMP_DIR = os.path.join(os.path.dirname(__file__), 'avrogen_tests')
         if os.path.isdir(cls.TMP_DIR):
             shutil.rmtree(cls.TMP_DIR)
         os.mkdir(cls.TMP_DIR)
