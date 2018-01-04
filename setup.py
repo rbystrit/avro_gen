@@ -12,12 +12,15 @@ from os import path
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+if path.exists(path.join(here, 'README.md')):
+    with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+        long_description = f.read()
+else:
+    long_description = ''
 
 setup(
     name='avro-gen',
-    version='0.2.0',
+    version='0.2.3',
 
     description='Avro record class and specific record reader generator',
     long_description=long_description,
@@ -49,5 +52,6 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
+    package_data={'': ['README.md']},
     install_requires=['avro >= 1.8.0', 'six', 'frozendict', 'tzlocal', 'pytz'],
 )
