@@ -1,0 +1,100 @@
+{
+  "type": "record",
+  "name": "LogicalTypesTest",
+  "fields": [
+    {
+      "name": "decimalField",
+      "type": {
+        "type": "string",
+        "logicalType": "decimal",
+        "precision": 38,
+        "scale": 10
+      }
+    },
+    {
+      "name": "decimalFieldWithDefault",
+      "type": {
+        "type": "string",
+        "logicalType": "decimal",
+        "precision": 38,
+        "scale": 10
+      },
+      "default": "10.0"
+    },
+    {
+      "name": "dateField",
+      "type": {
+        "type": "int",
+        "logicalType": "date"
+      }
+    },
+    {
+      "name": "dateFieldWithDefault",
+      "type": {
+        "type": "int",
+        "logicalType": "date"
+      },
+      "default": 42
+    },
+    {
+      "name": "timeMillisField",
+      "type": {
+        "type": "int",
+        "logicalType": "time-millis"
+      }
+    },
+    {
+      "name": "timeMillisFieldWithDefault",
+      "type": {
+        "type": "int",
+        "logicalType": "time-millis"
+      },
+      "default": 42000
+    },
+    {
+      "name": "timeMicrosField",
+      "type": {
+        "type": "long",
+        "logicalType": "time-micros"
+      }
+    },
+    {
+      "name": "timeMicrosFieldWithDefault",
+      "type": {
+        "type": "long",
+        "logicalType": "time-micros"
+      },
+      "default": 42000000
+    },
+    {
+      "name": "timestampMillisField",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "timestampMillisFieldWithDefault",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "default": 42000
+    },
+    {
+      "name": "timestampMicrosField",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-micros"
+      }
+    },
+    {
+      "name": "timestampMicrosFieldWithDefault",
+      "type": {
+        "type": "int",
+        "logicalType": "timestamp-micros"
+      },
+      "default": 42000000
+    }
+  ]
+}

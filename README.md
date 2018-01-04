@@ -18,7 +18,7 @@ properties with proper type hints for each field in the schema. For this exact r
 generator does not provide an overloaded DictWriter; each specific record appears just to be a 
 regular dictionary.
  
-#####Usage:
+##### Usage:
     schema_json = "....."
     output_directory = "....."
     from avrogen import write_schema_files
@@ -104,7 +104,7 @@ So in your code you will be able to say:
         reader.close()
         
        
-###Avro protocol support
+### Avro protocol support
 
 Avro protocol support is implemented the same way as schema support. To generate classes 
 for a protocol:
@@ -119,3 +119,4 @@ The structure of the generated code will be exactly same as for schema, but in a
 regular types, *Request types will be generated in the root namespace of the protocol for each 
 each message defined.
 
+### Logical types support

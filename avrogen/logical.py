@@ -34,6 +34,14 @@ class LogicalTypeProcessor(object, six.with_metaclass(abc.ABCMeta)):
     def can_convert(self, writers_schema):
         pass
 
+    @abc.abstractmethod
+    def typename(self):
+        pass
+
+    @abc.abstractmethod
+    def initializer(self, value=None):
+        pass
+
 
 class DecimalLogicalTypeProcessor(LogicalTypeProcessor):
     def can_convert(self, writers_schema):
@@ -52,6 +60,12 @@ class DecimalLogicalTypeProcessor(LogicalTypeProcessor):
             if writers_schema.type == 'string':
                 return True
         return False
+
+    def typename(self):
+        return 'decimal.Decimal'
+
+    def initializer(self, value=None):
+        return 'decimal.Decimal(%s)' % (0 if value is None else value)
 
 
 class DateLogicalTypeProcessor(LogicalTypeProcessor):
@@ -73,6 +87,14 @@ class DateLogicalTypeProcessor(LogicalTypeProcessor):
             if writers_schema.type in DateLogicalTypeProcessor._matching_types:
                 return True
         return False
+
+    def typename(self):
+        return 'datetime.date'
+
+    def initializer(self, value=None):
+        return ((
+                    'logical.DateLogicalTypeProcessor().convert_back(None, None, %s)' % value) if value is not None
+                else 'datetime.datetime.today().date()')
 
 
 class TimeMicrosLogicalTypeProcessor(LogicalTypeProcessor):
@@ -109,6 +131,14 @@ class TimeMicrosLogicalTypeProcessor(LogicalTypeProcessor):
                 return True
         return False
 
+    def typename(self):
+        return 'datetime.time'
+
+    def initializer(self, value=None):
+        return ((
+                    'logical.TimeMicrosLogicalTypeProcessor().convert_back(None, None, %s)' % value) if value is not None
+                else 'datetime.datetime.today().time()')
+
 
 class TimeMillisLogicalTypeProcessor(TimeMicrosLogicalTypeProcessor):
     def can_convert(self, writers_schema):
@@ -121,6 +151,11 @@ class TimeMillisLogicalTypeProcessor(TimeMicrosLogicalTypeProcessor):
 
     def convert_back(self, writers_schema, readers_schema, value):
         return super(TimeMillisLogicalTypeProcessor, self).convert_back(writers_schema, readers_schema, value * 1000)
+
+    def initializer(self, value=None):
+        return ((
+                    'logical.TimeMillisLogicalTypeProcessor().convert_back(None, None, %s)' % value) if value is not None
+                else 'datetime.datetime.today().time()')
 
 
 class TimestampMicrosLogicalTypeProcessor(LogicalTypeProcessor):
@@ -141,7 +176,7 @@ class TimestampMicrosLogicalTypeProcessor(LogicalTypeProcessor):
         return long(value * 1000000)
 
     def convert_back(self, writers_schema, readers_schema, value):
-        value = long(value)/1000000.0
+        value = long(value) / 1000000.0
         utc = datetime.datetime.utcfromtimestamp(value).replace(tzinfo=pytz.UTC)
         return utc.astimezone(tzlocal.get_localzone()).replace(tzinfo=None)
 
@@ -150,6 +185,14 @@ class TimestampMicrosLogicalTypeProcessor(LogicalTypeProcessor):
             if writers_schema.type in TimestampMicrosLogicalTypeProcessor._matching_types:
                 return True
         return False
+
+    def typename(self):
+        return 'datetime.datetime'
+
+    def initializer(self, value=None):
+        return ((
+                    'logical.TimestampMicrosLogicalTypeProcessor().convert_back(None, None, %s)' % value) if value is not None
+                else 'datetime.datetime.now()')
 
 
 class TimestampMillisLogicalTypeProcessor(TimestampMicrosLogicalTypeProcessor):
@@ -160,11 +203,16 @@ class TimestampMillisLogicalTypeProcessor(TimestampMicrosLogicalTypeProcessor):
         return super(TimestampMillisLogicalTypeProcessor, self).convert_back(writers_schema, readers_schema,
                                                                              value * 1000)
 
+    def initializer(self, value=None):
+        return ((
+                    'logical.TimestampMillisLogicalTypeProcessor().convert_back(None, None, %s)' % value) if value is not None
+                else 'datetime.datetime.now()')
+
 
 DEFAULT_LOGICAL_TYPES = frozendict.frozendict(**{
     'decimal': DecimalLogicalTypeProcessor(),
     'date': DateLogicalTypeProcessor(),
-    'time-millis': TimeMicrosLogicalTypeProcessor(),
+    'time-millis': TimeMillisLogicalTypeProcessor(),
     'time-micros': TimeMicrosLogicalTypeProcessor(),
     'timestamp-millis': TimestampMillisLogicalTypeProcessor(),
     'timestamp-micros': TimestampMicrosLogicalTypeProcessor(),

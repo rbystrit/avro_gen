@@ -2,7 +2,7 @@ from . import namespace as ns_
 from .core_writer import write_defaults, write_fields
 
 
-def write_protocol_request(message, namespace, writer):
+def write_protocol_request(message, namespace, writer, use_logical_types):
     """
     Write concrete class for a protocol request
     :param avro.protocol.Message message: Message whose request to write
@@ -28,5 +28,5 @@ def write_protocol_request(message, namespace, writer):
 
             writer.write('\nif inner_dict is None:')
             with writer.indent():
-                write_defaults(message.request, writer, my_full_name=fullname + "Request")
-        write_fields(message.request, writer)
+                write_defaults(message.request, writer, my_full_name=fullname + "Request", use_logical_types=use_logical_types)
+        write_fields(message.request, writer, use_logical_types)

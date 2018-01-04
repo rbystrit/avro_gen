@@ -12,8 +12,9 @@ import avrogen.protocol
 import logging
 import sys
 
-#logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-#logging.getLogger('avrogen.schema').setLevel(logging.DEBUG)
+
+# logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+# logging.getLogger('avrogen.schema').setLevel(logging.DEBUG)
 
 class GeneratorTestCase(unittest.TestCase):
     TEST_NUMBER = 1
@@ -40,7 +41,7 @@ class GeneratorTestCase(unittest.TestCase):
 
         if os.path.isdir(self.output_dir):
             shutil.rmtree(self.output_dir)
-        print __file__
+            # print __file__
 
     def tearDown(self):
         if os.path.isdir(self.output_dir):
@@ -178,6 +179,47 @@ class GeneratorTestCase(unittest.TestCase):
 
         self.assertTrue(hasattr(kop, 'known'))
         self.assertTrue(hasattr(kop, 'data'))
+
+    def test_logical(self):
+        schema_json = self.read_schema('logical_types.json')
+        avrogen.schema.write_schema_files(schema_json, self.output_dir, use_logical_types=True)
+        root_module = importlib.import_module(self.test_name)
+        importlib.import_module('.schema_classes', self.test_name)
+
+        self.assertTrue(hasattr(root_module, 'LogicalTypesTest'))
+        LogicalTypesTest = root_module.LogicalTypesTest
+
+        instance = root_module.LogicalTypesTest()
+
+        import decimal
+        import datetime
+        import pytz
+        import tzlocal
+
+        self.assertIsInstance(instance.decimalField, decimal.Decimal)
+        self.assertIsInstance(instance.decimalFieldWithDefault, decimal.Decimal)
+        self.assertIsInstance(instance.dateField, datetime.date)
+        self.assertIsInstance(instance.dateFieldWithDefault, datetime.date)
+        self.assertIsInstance(instance.timeMillisField, datetime.time)
+        self.assertIsInstance(instance.timeMillisFieldWithDefault, datetime.time)
+        self.assertIsInstance(instance.timeMicrosField, datetime.time)
+        self.assertIsInstance(instance.timeMicrosFieldWithDefault, datetime.time)
+        self.assertIsInstance(instance.timestampMillisField, datetime.datetime)
+        self.assertIsInstance(instance.timestampMillisFieldWithDefault, datetime.datetime)
+        self.assertIsInstance(instance.timestampMicrosField, datetime.datetime)
+        self.assertIsInstance(instance.timestampMicrosFieldWithDefault, datetime.datetime)
+
+        self.assertEquals(instance.decimalFieldWithDefault, decimal.Decimal(10))
+        self.assertEquals(instance.dateFieldWithDefault, datetime.date(1970, 2, 12))
+        self.assertEquals(instance.timeMillisFieldWithDefault, datetime.time(second=42))
+        self.assertEquals(instance.timeMicrosFieldWithDefault, datetime.time(second=42))
+
+        self.assertEquals(
+            tzlocal.get_localzone().localize(instance.timestampMicrosFieldWithDefault).astimezone(pytz.UTC),
+            datetime.datetime(1970, 1, 1, 0, 0, 42, tzinfo=pytz.UTC))
+        self.assertEquals(
+            tzlocal.get_localzone().localize(instance.timestampMillisFieldWithDefault).astimezone(pytz.UTC),
+            datetime.datetime(1970, 1, 1, 0, 0, 42, tzinfo=pytz.UTC))
 
     def test_simple_protocol(self):
         schema_json = self.read_schema('sample.avpr')

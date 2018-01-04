@@ -2,6 +2,7 @@ import os
 
 from avro import schema
 from . import namespace as ns_
+from . import logical
 
 PRIMITIVE_TYPES = {
     'null',
@@ -25,7 +26,7 @@ __PRIMITIVE_TYPE_MAPPING = {
 }
 
 
-def write_defaults(record, writer, my_full_name=None):
+def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
     """
     Write concrete record class's constructor part which initializes fields with default values
     :param schema.RecordSchema record: Avro RecordSchema whose class we are generating
@@ -41,7 +42,15 @@ def write_defaults(record, writer, my_full_name=None):
         default_type, nullable = find_type_of_default(field.type)
         default_written = False
         if field.has_default:
-            if isinstance(default_type, schema.RecordSchema):
+            if use_logical_types and default_type.get_prop('logicalType') \
+                    and default_type.get_prop('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
+                lt = logical.DEFAULT_LOGICAL_TYPES[default_type.get_prop('logicalType')]
+                writer.write(
+                    '\nself.{name} = {value}'
+                        .format(name=field.name,
+                                value=lt.initializer("SchemaClasses.{my_full_name}Class.RECORD_SCHEMA.fields[{idx}].default".format(full_name=default_type.fullname, idx=i, my_full_name=my_full_name))))
+                default_written = True
+            elif isinstance(default_type, schema.RecordSchema):
                 writer.write(
                     '\nself.{name} = SchemaClasses.{full_name}(SchemaClasses.{my_full_name}Class.RECORD_SCHEMA.fields[{idx}].default)'
                         .format(name=field.name, full_name=default_type.fullname, idx=i, my_full_name=my_full_name))
@@ -55,7 +64,12 @@ def write_defaults(record, writer, my_full_name=None):
             default_written = True
             if nullable:
                 writer.write('\nself.{name} = None'.format(name=field.name))
-            elif isinstance(default_type, schema.PrimitiveSchema):
+            elif use_logical_types and default_type.get_prop('logicalType') \
+                    and default_type.get_prop('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
+                lt = logical.DEFAULT_LOGICAL_TYPES[default_type.get_prop('logicalType')]
+                writer.write('\nself.{name} = {default}'.format(name=field.name,
+                                                                default=lt.initializer()))
+            elif isinstance(default_type, schema.PrimitiveSchema) and not default_type.get_prop('logicalType'):
                 writer.write('\nself.{name} = {default}'.format(name=field.name,
                                                                 default=get_primitive_field_initializer(field.type)))
             elif isinstance(default_type, schema.EnumSchema):
@@ -79,7 +93,7 @@ def write_defaults(record, writer, my_full_name=None):
         writer.write('\npass')
 
 
-def write_fields(record, writer):
+def write_fields(record, writer, use_logical_types):
     """
     Write field definitions for a given RecordSchema
     :param schema.RecordSchema record: Avro RecordSchema we are generating
@@ -88,10 +102,10 @@ def write_fields(record, writer):
     """
     writer.write('\n\n')
     for field in record.fields:  # type: schema.Field
-        write_field(field, writer)
+        write_field(field, writer, use_logical_types)
 
 
-def write_field(field, writer):
+def write_field(field, writer, use_logical_types):
     """
     Write a single field definition
     :param field:
@@ -113,7 +127,7 @@ def {name}(self, value):
     #"""
     self._inner_dict['{name}'] = value
 
-'''.format(name=field.name, ret_type_name=get_field_type_name(field.type)))
+'''.format(name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
 
 
 def get_primitive_field_initializer(field_schema):
@@ -126,15 +140,20 @@ def get_primitive_field_initializer(field_schema):
 
     if field_schema.fullname == 'null':
         return 'None'
-    return get_field_type_name(field_schema) + "()"
+    return get_field_type_name(field_schema, False) + "()"
 
 
-def get_field_type_name(field_schema):
+def get_field_type_name(field_schema, use_logical_types):
     """
     Gets a python type-hint for a given schema
     :param schema.Schema field_schema:
     :return: String containing python type hint
     """
+    if use_logical_types and field_schema.get_prop('logicalType'):
+        from avrogen.logical import DEFAULT_LOGICAL_TYPES
+        lt = DEFAULT_LOGICAL_TYPES.get(field_schema.get_prop('logicalType'))
+        if lt:
+            return lt.typename()
 
     if isinstance(field_schema, schema.PrimitiveSchema):
         if field_schema.fullname == 'null':
@@ -145,11 +164,12 @@ def get_field_type_name(field_schema):
     elif isinstance(field_schema, schema.NamedSchema):
         return 'SchemaClasses.' + field_schema.fullname + 'Class'
     elif isinstance(field_schema, schema.ArraySchema):
-        return 'list[' + get_field_type_name(field_schema.items) + ']'
+        return 'list[' + get_field_type_name(field_schema.items, use_logical_types) + ']'
     elif isinstance(field_schema, schema.MapSchema):
-        return 'dict[str, ' + get_field_type_name(field_schema.values) + ']'
+        return 'dict[str, ' + get_field_type_name(field_schema.values, use_logical_types) + ']'
     elif isinstance(field_schema, schema.UnionSchema):
-        type_names = [get_field_type_name(x) for x in field_schema.schemas if get_field_type_name(x)]
+        type_names = [get_field_type_name(x, use_logical_types) for x in field_schema.schemas if
+                      get_field_type_name(x, use_logical_types)]
         if len(type_names) > 1:
             return ' | '.join(type_names)
         elif len(type_names) == 1:
@@ -198,7 +218,7 @@ def start_namespace(current, target, writer):
         writer.write('\n')
 
 
-def write_preamble(writer):
+def write_preamble(writer, use_logical_types, custom_imports):
     """
     Writes a preamble of the file containing schema classes
     :param writer:
@@ -206,7 +226,14 @@ def write_preamble(writer):
     """
     writer.write('import json\n')
     writer.write('import os.path\n')
+    writer.write('import decimal\n')
+    writer.write('import datetime\n')
+
+    for cs in (custom_imports or []):
+        writer.write('import %s\n' % cs)
     writer.write('from avrogen.dict_wrapper import DictWrapper\n')
+    if use_logical_types:
+        writer.write('from avrogen import logical\n')
     writer.write('from avro import schema as avro_schema\n')
 
 
@@ -235,14 +262,15 @@ def write_get_schema(writer):
         writer.write('\nreturn __SCHEMAS.get(fullname)')
 
 
-def write_reader_impl(record_types, writer):
+def write_reader_impl(record_types, writer, use_logical_types):
     """
     Write specific reader implementation
     :param list[schema.RecordSchema] record_types:
     :param writer:
     :return:
     """
-    writer.write('\n\n\nclass SpecificDatumReader(DatumReader):')
+    writer.write('\n\n\nclass SpecificDatumReader(%s):' % (
+        'DatumReader' if not use_logical_types else 'logical.LogicalDatumReader'))
     with writer.indent():
         writer.write('\nSCHEMA_TYPES = {')
         with writer.indent():
@@ -291,7 +319,7 @@ def generate_namespace_modules(names, output_folder):
     return ns_dict
 
 
-def write_schema_record(record, writer):
+def write_schema_record(record, writer, use_logical_types):
     """
     Writes class representing Avro record schema
     :param avro.schema.RecordSchema record:
@@ -318,8 +346,8 @@ def write_schema_record(record, writer):
 
             writer.write('\nif inner_dict is None:')
             with writer.indent():
-                write_defaults(record, writer)
-        write_fields(record, writer)
+                write_defaults(record, writer, use_logical_types=use_logical_types)
+        write_fields(record, writer, use_logical_types)
 
 
 def write_enum(enum, writer):

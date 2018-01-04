@@ -15,13 +15,15 @@ logger = logging.getLogger('avrogen.schema')
 logger.setLevel(logging.INFO)
 
 
-def generate_schema(schema_json):
+def generate_schema(schema_json, use_logical_types=False, custom_imports=None):
     """
     Generate file containing concrete classes for RecordSchemas in given avro schema json
     :param str schema_json: JSON representing avro schema
+    :param list[str] custom_imports: Add additional import modules
     :return Dict[str, str]:
     """
 
+    custom_imports = custom_imports or []
     names = schema.Names()
     schema.make_avsc_object(json.loads(schema_json), names)
 
@@ -31,7 +33,7 @@ def generate_schema(schema_json):
     main_out = StringIO.StringIO()
     writer = TabbedWriter(main_out)
 
-    write_preamble(writer)
+    write_preamble(writer, use_logical_types, custom_imports)
     write_schema_preamble(writer)
     write_get_schema(writer)
     write_populate_schemas(writer)
@@ -50,7 +52,7 @@ def generate_schema(schema_json):
             current_namespace = namespace
         if isinstance(field_schema, schema.RecordSchema):
             logger.debug('Writing schema: %s', field_schema.fullname)
-            write_schema_record(field_schema, writer)
+            write_schema_record(field_schema, writer, use_logical_types)
         elif isinstance(field_schema, schema.EnumSchema):
             logger.debug('Writing enum: %s', field_schema.fullname)
             write_enum(field_schema, writer)
@@ -103,7 +105,7 @@ def write_namespace_modules(ns_dict, output_folder):
                 f.write("{name} = SchemaClasses.{ns}{name}Class\n".format(name=name, ns=ns if not ns else (ns + ".")))
 
 
-def write_specific_reader(record_types, output_folder):
+def write_specific_reader(record_types, output_folder, use_logical_types):
     """
     Writes specific reader for a avro schema into generated root module
     :param record_types:
@@ -114,18 +116,21 @@ def write_specific_reader(record_types, output_folder):
         writer = TabbedWriter(f)
         writer.write('\n\nfrom .schema_classes import SchemaClasses, SCHEMA as my_schema, get_schema_type')
         writer.write('\nfrom avro.io import DatumReader')
+        if use_logical_types:
+            writer.write('\nfrom avrogen import logical')
 
-        write_reader_impl(record_types, writer)
+        write_reader_impl(record_types, writer, use_logical_types)
 
 
-def write_schema_files(schema_json, output_folder):
+def write_schema_files(schema_json, output_folder, use_logical_types=False, custom_imports=None):
     """
     Generates concrete classes, namespace modules, and a SpecificRecordReader for a given avro schema
     :param str schema_json: JSON containing avro schema
     :param str output_folder: Folder in which to create generated files
+    :param list[str] custom_imports: Add additional import modules
     :return:
     """
-    schema_py, names = generate_schema(schema_json)
+    schema_py, names = generate_schema(schema_json, use_logical_types, custom_imports)
     names = sorted(names)
 
     if not os.path.isdir(output_folder):
@@ -143,4 +148,4 @@ def write_schema_files(schema_json, output_folder):
         pass  # make sure we create this file from scratch
 
     write_namespace_modules(ns_dict, output_folder)
-    write_specific_reader(names, output_folder)
+    write_specific_reader(names, output_folder, use_logical_types)

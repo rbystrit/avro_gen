@@ -10,13 +10,17 @@ from .core_writer import write_schema_record, write_enum, write_read_file, gener
 from .protocol_writer import write_protocol_request
 
 
-def generate_protocol(protocol_json):
+def generate_protocol(protocol_json, use_logical_types=False, custom_imports=None):
     """
     Generate content of the file which will contain concrete classes for RecordSchemas and requests contained
     in the avro protocol
     :param str protocol_json: JSON containing avro protocol
+    :param bool use_logical_types: Use logical types extensions if true
+    :param list[str] custom_imports: Add additional import modules
     :return:
     """
+
+    custom_imports = custom_imports or []
     proto = protocol.parse(protocol_json)
 
     schemas = []
@@ -55,8 +59,8 @@ def generate_protocol(protocol_json):
     main_out = StringIO.StringIO()
     writer = TabbedWriter(main_out)
 
-    write_preamble(writer)
-    write_protocol_preamble(writer)
+    write_preamble(writer, use_logical_types, custom_imports)
+    write_protocol_preamble(writer, use_logical_types, custom_imports)
     write_get_schema(writer)
     write_populate_schemas(writer)
 
@@ -78,14 +82,14 @@ def generate_protocol(protocol_json):
             for idx, record in namespaces[ns]['records']:
                 schema_names.add(record.fullname)
                 if isinstance(record, schema.RecordSchema):
-                    write_schema_record(record, writer)
+                    write_schema_record(record, writer, use_logical_types)
                 elif isinstance(record, schema.EnumSchema):
                     write_enum(record, writer)
 
             for message in namespaces[ns]['responses']:
                 schema_names.add(message.response.fullname)
                 if isinstance(message.response, schema.RecordSchema):
-                    write_schema_record(message.response, writer)
+                    write_schema_record(message.response, writer, use_logical_types)
                 elif isinstance(message.response, schema.EnumSchema):
                     write_enum(message.response, writer)
 
@@ -109,7 +113,7 @@ def generate_protocol(protocol_json):
 
             for message in namespaces[ns]['requests']:
                 request_names.add(ns_.make_fullname(proto.namespace, message.name))
-                write_protocol_request(message, proto.namespace, writer)
+                write_protocol_request(message, proto.namespace, writer, use_logical_types)
 
         writer.write('\n\npass')
     value = main_out.getvalue()
@@ -117,16 +121,23 @@ def generate_protocol(protocol_json):
     return value, schema_names, request_names
 
 
-def write_protocol_preamble(writer):
+def write_protocol_preamble(writer, use_logical_types, custom_imports):
     """
     Writes a preamble for avro protocol implementation.
     The preamble will contain a function which can load the protocol from the file
     and a global PROTOCOL variable which will contain parsed protocol
     :param writer:
+    :param use_logical_types:
     :return:
     """
     write_read_file(writer)
     writer.write('\nfrom avro import protocol as avro_protocol')
+
+    for i in (custom_imports or []):
+        writer.write('import %s\n' % i)
+
+    if use_logical_types:
+        writer.write('\nfrom avrogen import logical')
     writer.write('\n\ndef __get_protocol(file_name):')
     with writer.indent():
         writer.write('\nproto = avro_protocol.parse(__read_file(file_name))')
@@ -151,15 +162,16 @@ def write_populate_schemas(writer):
             writer.write('\n__SCHEMAS[resp.response.fullname] = resp.response')
 
 
-def write_protocol_files(protocol_json, output_folder):
+def write_protocol_files(protocol_json, output_folder, use_logical_types=False, custom_imports=None):
     """
     Generates concrete classes for RecordSchemas and requests and a SpecificReader for types and messages contained
     in the avro protocol.
     :param str protocol_json: JSON containing avro protocol
     :param str output_folder: Folder to write generated files to.
+    :param list[str] custom_imports: Add additional import modules
     :return:
     """
-    proto_py, record_names, request_names = generate_protocol(protocol_json)
+    proto_py, record_names, request_names = generate_protocol(protocol_json, use_logical_types, custom_imports)
     names = sorted(list(record_names) + list(request_names))
     if not os.path.isdir(output_folder):
         os.mkdir(output_folder)
@@ -176,10 +188,10 @@ def write_protocol_files(protocol_json, output_folder):
         pass
 
     write_namespace_modules(ns_dict, request_names, output_folder)
-    write_specific_reader(record_names, output_folder)
+    write_specific_reader(record_names, output_folder, use_logical_types)
 
 
-def write_specific_reader(record_types, output_folder):
+def write_specific_reader(record_types, output_folder, use_logical_types):
     """
     Write specific reader implementation for a protocol
     :param list[avro.schema.RecordSchema] record_types:
@@ -191,7 +203,7 @@ def write_specific_reader(record_types, output_folder):
         writer.write('\n\nfrom .schema_classes import SchemaClasses, PROTOCOL as my_proto, get_schema_type')
         writer.write('\nfrom avro.io import DatumReader')
 
-        write_reader_impl(record_types, writer)
+        write_reader_impl(record_types, writer, use_logical_types)
 
 
 def write_namespace_modules(ns_dict, request_names, output_folder):
@@ -213,7 +225,9 @@ def write_namespace_modules(ns_dict, request_names, output_folder):
             for name in ns_dict[ns]:
                 if ns_.make_fullname(ns, name) in request_names:
                     f.write(
-                        "{name}Request = RequestClasses.{ns}{name}RequestClass\n".format(name=name, ns=ns if not ns else (ns + ".")))
+                        "{name}Request = RequestClasses.{ns}{name}RequestClass\n".format(name=name,
+                                                                                         ns=ns if not ns else (
+                                                                                         ns + ".")))
                 else:
                     f.write("{name} = SchemaClasses.{ns}{name}Class\n".format(name=name,
-                                                                                      ns=ns if not ns else (ns + ".")))
+                                                                              ns=ns if not ns else (ns + ".")))
