@@ -11,6 +11,7 @@ import pytz
 import tzlocal
 import time
 
+
 class LogicalTypeTest(unittest.TestCase):
     @contextlib.contextmanager
     def _exception(self):
@@ -133,12 +134,14 @@ class LogicalTypeTest(unittest.TestCase):
                           1430438400123456)
 
         offset_res = 1430452800123456L
-        self.assertEquals(p.convert(datetime.datetime(2015, 5, 1, 0,0,0, microsecond=123456)), offset_res)
+        self.assertEquals(p.convert(
+            pytz.timezone('America/New_York').localize(datetime.datetime(2015, 5, 1, 0, 0, 0, microsecond=123456))),
+            offset_res)
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(p.convert_back(test_schema2, test_schema2, offset_res),
-                          datetime.datetime(2015, 5, 1, microsecond=123456))
+        self.assertEquals(p.convert_back(test_schema2, test_schema2, p.convert(datetime.datetime(2016,1,1))),
+                          datetime.datetime(2016, 1, 1))
 
     def test_timestamp_millis(self):
         p = TimestampMillisLogicalTypeProcessor()
@@ -162,12 +165,14 @@ class LogicalTypeTest(unittest.TestCase):
                           1430438400123)
 
         offset_res = 1430452800123L
-        self.assertEquals(p.convert(datetime.datetime(2015, 5, 1, microsecond=123456)), offset_res)
+        self.assertEquals(
+            p.convert(pytz.timezone('America/New_York').localize(datetime.datetime(2015, 5, 1, microsecond=123456))),
+            offset_res)
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(p.convert_back(test_schema2, test_schema2, offset_res),
-                          datetime.datetime(2015, 5, 1, microsecond=123000))
+        self.assertEquals(p.convert_back(test_schema2, test_schema2, p.convert(datetime.datetime(2016,1,1))),
+                          datetime.datetime(2016, 1, 1))
 
 
 if __name__ == "__main__":
