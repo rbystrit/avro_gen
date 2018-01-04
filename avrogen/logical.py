@@ -6,7 +6,6 @@ import six
 import collections
 import frozendict
 import datetime
-import cdecimal
 import decimal
 import struct
 import time
@@ -41,12 +40,12 @@ class DecimalLogicalTypeProcessor(LogicalTypeProcessor):
         return isinstance(writers_schema, schema.PrimitiveSchema) and writers_schema.type == 'string'
 
     def convert(self, value):
-        if not isinstance(value, (int, float, long, cdecimal.Decimal, decimal.Decimal)):
+        if not isinstance(value, (int, float, long, decimal.Decimal)):
             raise Exception('Wrong type for decimal conversion')
         return str(value)
 
     def convert_back(self, writers_schema, readers_schema, value):
-        return cdecimal.Decimal(value)
+        return decimal.Decimal(value)
 
     def does_match(self, writers_schema, readers_schema):
         if isinstance(writers_schema, schema.PrimitiveSchema):

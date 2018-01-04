@@ -5,7 +5,6 @@ from avrogen.logical import TimeMicrosLogicalTypeProcessor, TimeMillisLogicalTyp
 from avro import schema
 import unittest
 import decimal
-import cdecimal
 import contextlib
 import datetime
 import pytz
@@ -39,13 +38,12 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertEquals(p.convert(1234), '1234')
         self.assertEquals(p.convert(1234.5), '1234.5')
         self.assertEquals(p.convert(12345L), '12345')
-        self.assertEquals(p.convert(cdecimal.Decimal('12345.678')), '12345.678')
         self.assertEquals(p.convert(decimal.Decimal('12345.678')), '12345.678')
 
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(p.convert_back(test_schema1, test_schema1, '123456.789'), cdecimal.Decimal('123456.789'))
+        self.assertEquals(p.convert_back(test_schema1, test_schema1, '123456.789'), decimal.Decimal('123456.789'))
 
     def test_date(self):
         p = DateLogicalTypeProcessor()
