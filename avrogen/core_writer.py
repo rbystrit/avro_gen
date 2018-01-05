@@ -26,6 +26,18 @@ __PRIMITIVE_TYPE_MAPPING = {
 }
 
 
+def convert_default(full_name, idx, do_json=True):
+    if do_json:
+        return ('_json_converter.from_json_dict(SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].default,'
+               + ' writers_schema=SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].type)').format(
+            full_name=full_name, idx=idx
+        )
+    else:
+        return ('SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].default').format(
+            full_name=full_name, idx=idx
+        )
+
+
 def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
     """
     Write concrete record class's constructor part which initializes fields with default values
@@ -45,19 +57,25 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
             if use_logical_types and default_type.get_prop('logicalType') \
                     and default_type.get_prop('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
                 lt = logical.DEFAULT_LOGICAL_TYPES[default_type.get_prop('logicalType')]
+
+
                 writer.write(
                     '\nself.{name} = {value}'
                         .format(name=field.name,
-                                value=lt.initializer("SchemaClasses.{my_full_name}Class.RECORD_SCHEMA.fields[{idx}].default".format(full_name=default_type.fullname, idx=i, my_full_name=my_full_name))))
+                                value=lt.initializer(convert_default(my_full_name, idx=i,
+                                                                     do_json=isinstance(default_type,
+                                                                                        schema.RecordSchema)))))
                 default_written = True
             elif isinstance(default_type, schema.RecordSchema):
                 writer.write(
-                    '\nself.{name} = SchemaClasses.{full_name}(SchemaClasses.{my_full_name}Class.RECORD_SCHEMA.fields[{idx}].default)'
-                        .format(name=field.name, full_name=default_type.fullname, idx=i, my_full_name=my_full_name))
+                    '\nself.{name} = SchemaClasses.{full_name}Class({default})'
+                        .format(name=field.name, full_name=default_type.fullname,
+                                default=convert_default(idx=i, full_name=my_full_name, do_json=True)))
                 default_written = True
             elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
-                writer.write('\nself.{name} = SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].default'
-                             .format(name=field.name, full_name=my_full_name, idx=i))
+                writer.write('\nself.{name} = {default}'
+                             .format(name=field.name, default=convert_default(full_name=my_full_name, idx=i,
+                                                                              do_json=False)))
                 default_written = True
 
         if not default_written:
@@ -236,6 +254,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
     for cs in (custom_imports or []):
         writer.write('import %s\n' % cs)
     writer.write('from avrogen.dict_wrapper import DictWrapper\n')
+    writer.write('from avrogen import avrojson\n')
     if use_logical_types:
         writer.write('from avrogen import logical\n')
     writer.write('from avro import schema as avro_schema\n')

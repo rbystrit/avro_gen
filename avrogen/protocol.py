@@ -10,15 +10,22 @@ from .core_writer import write_schema_record, write_enum, write_read_file, gener
 from .protocol_writer import write_protocol_request
 
 
-def generate_protocol(protocol_json, use_logical_types=False, custom_imports=None):
+def generate_protocol(protocol_json, use_logical_types=False, custom_imports=None, avro_json_converter=None):
     """
     Generate content of the file which will contain concrete classes for RecordSchemas and requests contained
     in the avro protocol
     :param str protocol_json: JSON containing avro protocol
     :param bool use_logical_types: Use logical types extensions if true
     :param list[str] custom_imports: Add additional import modules
+    :param str avro_json_converter: AvroJsonConverter type to use for default values
     :return:
     """
+
+    if avro_json_converter is None:
+        avro_json_converter = 'avrojson.AvroJsonConverter'
+
+    if '(' not in avro_json_converter:
+        avro_json_converter += '(use_logical_types=%s, schema_types=__SCHEMA_TYPES)' % use_logical_types
 
     custom_imports = custom_imports or []
     proto = protocol.parse(protocol_json)
@@ -116,6 +123,28 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
                 write_protocol_request(message, proto.namespace, writer, use_logical_types)
 
         writer.write('\n\npass')
+
+    writer.untab()
+    writer.set_tab(0)
+    writer.write('\n__SCHEMA_TYPES = {\n')
+    writer.tab()
+
+    all_ns = sorted(namespaces.keys())
+    for ns in all_ns:
+        for idx, record in (namespaces[ns]['records'] or []):
+            writer.write("'%s': SchemaClasses.%sClass,\n" % (record.fullname, record.fullname))
+
+        for message in (namespaces[ns]['responses'] or []):
+            writer.write("'%s': SchemaClasses.%sClass,\n" % (message.response.fullname, message.response.fullname))
+
+        for message in (namespaces[ns]['requests'] or []):
+            name = ns_.make_fullname(proto.namespace, message.name)
+            writer.write("'%s': RequestClasses.%sRequestClass, \n" % (name, name))
+
+    writer.untab()
+    writer.write('\n}\n')
+
+    writer.write('_json_converter = %s\n\n' % avro_json_converter)
     value = main_out.getvalue()
     main_out.close()
     return value, schema_names, request_names

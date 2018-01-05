@@ -15,13 +15,20 @@ logger = logging.getLogger('avrogen.schema')
 logger.setLevel(logging.INFO)
 
 
-def generate_schema(schema_json, use_logical_types=False, custom_imports=None):
+def generate_schema(schema_json, use_logical_types=False, custom_imports=None, avro_json_converter=None):
     """
     Generate file containing concrete classes for RecordSchemas in given avro schema json
     :param str schema_json: JSON representing avro schema
     :param list[str] custom_imports: Add additional import modules
+    :param str avro_json_converter: AvroJsonConverter type to use for default values
     :return Dict[str, str]:
     """
+
+    if avro_json_converter is None:
+        avro_json_converter = 'avrojson.AvroJsonConverter'
+
+    if '(' not in avro_json_converter:
+        avro_json_converter += '(use_logical_types=%s, schema_types=__SCHEMA_TYPES)' % use_logical_types
 
     custom_imports = custom_imports or []
     names = schema.Names()
@@ -57,6 +64,18 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None):
             logger.debug('Writing enum: %s', field_schema.fullname)
             write_enum(field_schema, writer)
     writer.write('\npass\n')
+    writer.set_tab(0)
+    writer.write('\n__SCHEMA_TYPES = {\n')
+    writer.tab()
+
+    for name, field_schema in names:
+        writer.write("'%s': SchemaClasses.%sClass,\n" % (field_schema.fullname, field_schema.fullname))
+
+    writer.untab()
+    writer.write('\n}\n')
+
+    writer.write('_json_converter = %s\n\n' % avro_json_converter)
+
     value = main_out.getvalue()
     main_out.close()
     return value, [name[0] for name in names]
