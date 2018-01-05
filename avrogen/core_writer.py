@@ -71,7 +71,7 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
                                                                 default=lt.initializer()))
             elif isinstance(default_type, schema.PrimitiveSchema) and not default_type.get_prop('logicalType'):
                 writer.write('\nself.{name} = {default}'.format(name=field.name,
-                                                                default=get_primitive_field_initializer(field.type)))
+                                                                default=get_primitive_field_initializer(default_type)))
             elif isinstance(default_type, schema.EnumSchema):
                 writer.write('\nself.{name} = SchemaClasses.{full_name}Class.{sym}'
                              .format(name=field.name, full_name=default_type.fullname,
@@ -138,7 +138,7 @@ def get_primitive_field_initializer(field_schema):
     :return:
     """
 
-    if field_schema.fullname == 'null':
+    if field_schema.type == 'null':
         return 'None'
     return get_field_type_name(field_schema, False) + "()"
 
@@ -185,9 +185,13 @@ def find_type_of_default(field_type):
     """
 
     if isinstance(field_type, schema.UnionSchema):
-        type_, nullable = find_type_of_default(field_type.schemas)
-        nullable = nullable or any(
-            f for f in field_type.schemas if isinstance(f, schema.PrimitiveSchema) and f.fullname == 'null')
+        non_null_types = [s for s in field_type.schemas if s.type != 'null']
+        if non_null_types:
+            type_, nullable = find_type_of_default(non_null_types[0])
+            nullable = nullable or any(
+                f for f in field_type.schemas if isinstance(f, schema.PrimitiveSchema) and f.fullname == 'null')
+        else:
+            type_, nullable = field_type.schemas[0], True
         return type_, nullable
     elif isinstance(field_type, schema.PrimitiveSchema):
         return field_type, field_type.fullname == 'null'
