@@ -15,10 +15,10 @@ class AvroJsonConverter(object):
         self.schema_types = schema_types or {}
 
     def validate(self, expected_schema, datum, skip_logical_types=False):
-        if self.use_logical_types and expected_schema.get_prop('logicalType') and not skip_logical_types\
+        if self.use_logical_types and expected_schema.get_prop('logicalType') and not skip_logical_types \
                 and expected_schema.get_prop('logicalType') in self.logical_types:
             return self.logical_types[expected_schema.get_prop('logicalType')].can_convert(expected_schema) \
-                and self.logical_types[expected_schema.get_prop('logicalType')].validate(expected_schema, datum)
+                   and self.logical_types[expected_schema.get_prop('logicalType')].validate(expected_schema, datum)
         schema_type = expected_schema.type
         if schema_type == 'array':
             return (isinstance(datum, list) and
@@ -46,6 +46,9 @@ class AvroJsonConverter(object):
         if writers_schema is None:
             raise Exception('At least one schema must be specified')
 
+        if not io.DatumReader.match_schemas(writers_schema, readers_schema):
+            raise io.SchemaResolutionException('Could not match schemas', writers_schema, readers_schema)
+
         return self._generic_from_json(json_obj, writers_schema, readers_schema)
 
     def to_json_object(self, data_obj, writers_schema=None):
@@ -67,7 +70,15 @@ class AvroJsonConverter(object):
         return schema_.type
 
     def _generic_to_json(self, data_obj, writers_schema):
-        result = None
+        if self.use_logical_types and writers_schema.get_prop('logicalType'):
+            lt = self.logical_types.get(writers_schema.get_prop('logicalType'))  # type: logical.LogicalTypeProcessor
+            if lt.can_convert(writers_schema):
+                if lt.validate(writers_schema, data_obj):
+                    data_obj = lt.convert(writers_schema, data_obj)
+                else:
+                    raise schema.AvroException(
+                        'Wrong object for %s logical type' % writers_schema.get_prop('logicalType'))
+
         if writers_schema.type in _PRIMITIVE_TYPES:
             result = self._primitive_to_json(data_obj, writers_schema)
         elif writers_schema.type == 'fixed':
@@ -85,10 +96,6 @@ class AvroJsonConverter(object):
         else:
             raise schema.AvroException('Invalid schema type: %s' % writers_schema.type)
 
-        if self.use_logical_types and writers_schema.get_prop('logicalType'):
-            lt = self.logical_types.get(writers_schema.get_prop('logicalType'))  # type: logical.LogicalTypeProcessor
-            if lt.can_convert(writers_schema) and lt.validate(writers_schema, data_obj):
-                result = lt.convert(writers_schema, data_obj)
         return result
 
     def _primitive_to_json(self, data_obj, writers_schema):
@@ -132,7 +139,7 @@ class AvroJsonConverter(object):
 
     def _generic_from_json(self, json_obj, writers_schema, readers_schema):
         if (writers_schema.type not in ['union', 'error_union']
-                and readers_schema.type in ['union', 'error_union']):
+            and readers_schema.type in ['union', 'error_union']):
             for s in readers_schema.schemas:
                 if io.DatumReader.match_schemas(writers_schema, s):
                     return self._generic_from_json(json_obj, writers_schema, s)

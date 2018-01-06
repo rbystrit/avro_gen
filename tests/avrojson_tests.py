@@ -109,3 +109,7 @@ class AvroJsonTest(unittest.TestCase):
         self.assertDictEqual(self.converter_lt.from_json_object(self.converter_lt.to_json_object(input, writers_schema),
                                                              writers_schema, readers_schema),
                              output2)
+
+    @unittest.expectedFailure
+    def test_schema_mismatch(self):
+        self.converter.from_json_object(42, schema.make_avsc_object('int'), schema.make_avsc_object('string'))
