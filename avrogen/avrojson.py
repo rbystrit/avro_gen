@@ -14,10 +14,30 @@ class AvroJsonConverter(object):
         self.logical_types = logical_types or {}
         self.schema_types = schema_types or {}
 
-    def validate(self, expected_schema, datum):
+    def validate(self, expected_schema, datum, skip_logical_types=False):
+        if self.use_logical_types and expected_schema.get_prop('logicalType') and not skip_logical_types\
+                and expected_schema.get_prop('logicalType') in self.logical_types:
+            return self.logical_types[expected_schema.get_prop('logicalType')].can_convert(expected_schema) \
+                and self.logical_types[expected_schema.get_prop('logicalType')].validate(expected_schema, datum)
+        schema_type = expected_schema.type
+        if schema_type == 'array':
+            return (isinstance(datum, list) and
+                    False not in [self.validate(expected_schema.items, d, skip_logical_types) for d in datum])
+        elif schema_type == 'map':
+            return (isinstance(datum, dict) and
+                    False not in [isinstance(k, basestring) for k in datum.keys()] and
+                    False not in
+                    [self.validate(expected_schema.values, v, skip_logical_types) for v in datum.values()])
+        elif schema_type in ['union', 'error_union']:
+            return True in [self.validate(s, datum, skip_logical_types) for s in expected_schema.schemas]
+        elif schema_type in ['record', 'error', 'request']:
+            return (isinstance(datum, dict) and
+                    False not in
+                    [self.validate(f.type, datum.get(f.name), skip_logical_types) for f in expected_schema.fields])
+
         return io.validate(expected_schema, datum)
 
-    def from_json_dict(self, json_obj, writers_schema=None, readers_schema=None):
+    def from_json_object(self, json_obj, writers_schema=None, readers_schema=None):
         if readers_schema is None:
             readers_schema = writers_schema
         if writers_schema is None:
@@ -28,7 +48,7 @@ class AvroJsonConverter(object):
 
         return self._generic_from_json(json_obj, writers_schema, readers_schema)
 
-    def to_json_dict(self, data_obj, writers_schema=None):
+    def to_json_object(self, data_obj, writers_schema=None):
         if hasattr(type(data_obj), 'RECORD_SCHEMA'):
             writers_schema = type(data_obj).writers_schema
 
@@ -36,8 +56,10 @@ class AvroJsonConverter(object):
             raise Exception("Could not determine writer's schema from the object type and schema was not passed")
         assert isinstance(writers_schema, schema.Schema)
 
-        if not io.validate(writers_schema, data_obj):
-            raise io.AvroTypeException(schema, data_obj)
+        if not self.validate(writers_schema, data_obj):
+            raise io.AvroTypeException(writers_schema, data_obj)
+
+        return self._generic_to_json(data_obj, writers_schema)
 
     def _fullname(self, schema_):
         if isinstance(schema_, schema.NamedSchema):
@@ -64,9 +86,9 @@ class AvroJsonConverter(object):
             raise schema.AvroException('Invalid schema type: %s' % writers_schema.type)
 
         if self.use_logical_types and writers_schema.get_prop('logicalType'):
-            lt = self.logical_types.get(writers_schema.get_prop('logicalType')) #type: logical.LogicalTypeProcessor
-            if lt.can_convert(writers_schema):
-                result = lt.convert(writers_schema)
+            lt = self.logical_types.get(writers_schema.get_prop('logicalType'))  # type: logical.LogicalTypeProcessor
+            if lt.can_convert(writers_schema) and lt.validate(writers_schema, data_obj):
+                result = lt.convert(writers_schema, data_obj)
         return result
 
     def _primitive_to_json(self, data_obj, writers_schema):
@@ -90,14 +112,14 @@ class AvroJsonConverter(object):
         for field in writers_schema.fields:
             result[field.name] = self._generic_to_json(
                 data_obj.get(field.name,
-                             self.from_json_dict(field.default, field.type) if field.has_default else None),
+                             self.from_json_object(field.default, field.type) if field.has_default else None),
                 field.type)
         return result
 
     def _union_to_json(self, data_obj, writers_schema):
         index_of_schema = -1
         for i, candidate_schema in enumerate(writers_schema.schemas):
-            if io.validate(candidate_schema, data_obj):
+            if self.validate(candidate_schema, data_obj):
                 index_of_schema = i
                 if candidate_schema.type == 'boolean':
                     break
@@ -164,16 +186,21 @@ class AvroJsonConverter(object):
     def _union_from_json(self, json_obj, writers_schema, readers_schema):
         if json_obj is None:
             return None
-        items = list(six.iteritems(json_obj))
-        if not items:
-            return None
+        if isinstance(json_obj, collections.Mapping):
+            items = list(six.iteritems(json_obj))
+            if not items:
+                return None
 
-        value_type = items[0][0]
-        value = items[0][1]
+            value_type = items[0][0]
+            value = items[0][1]
+            for s in writers_schema.schemas:
+                name = self._fullname(s)
+                if name == value_type:
+                    return self._generic_from_json(value, s, readers_schema)
+
         for s in writers_schema.schemas:
-            name = self._fullname(s)
-            if s == value_type:
-                return self._generic_from_json(value, s, readers_schema)
+            if self.validate(s, json_obj, skip_logical_types=True):
+                return self._generic_from_json(json_obj, s, readers_schema)
         raise schema.AvroException('Datum union type not in schema: %s', value_type)
 
     def _instantiate_record(self, decoded_record, writers_schema, readers_schema):
@@ -183,7 +210,7 @@ class AvroJsonConverter(object):
         return decoded_record
 
     def _record_from_json(self, json_obj, writers_schema, readers_schema):
-        writer_fields = writers_schema.field_dict
+        writer_fields = writers_schema.fields_dict
 
         result = {}
         for field in readers_schema.fields:
@@ -193,8 +220,7 @@ class AvroJsonConverter(object):
                     if field.has_default else None
             else:
                 if field.name in json_obj:
-                    field_value = self._generic_from_json(json_obj[field.name], writers_field.type, field.type) \
-                        if field.has_default else None
+                    field_value = self._generic_from_json(json_obj[field.name], writers_field.type, field.type)
                 else:
                     field_value = self._generic_from_json(writers_field.default,
                                                           writers_field.type, field.type) \

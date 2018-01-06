@@ -19,6 +19,10 @@ EPOCH_TT = time.mktime((1970, 1, 1, 0, 0, 0, 0, 0, 0))
 
 class LogicalTypeProcessor(object, six.with_metaclass(abc.ABCMeta)):
     @abc.abstractmethod
+    def validate(self, expected_schema, datum):
+        pass
+
+    @abc.abstractmethod
     def does_match(self, writers_schema, readers_schema):
         return False
 
@@ -27,7 +31,7 @@ class LogicalTypeProcessor(object, six.with_metaclass(abc.ABCMeta)):
         return value
 
     @abc.abstractmethod
-    def convert(self, value):
+    def convert(self, writers_schema, value):
         pass
 
     @abc.abstractmethod
@@ -47,7 +51,10 @@ class DecimalLogicalTypeProcessor(LogicalTypeProcessor):
     def can_convert(self, writers_schema):
         return isinstance(writers_schema, schema.PrimitiveSchema) and writers_schema.type == 'string'
 
-    def convert(self, value):
+    def validate(self, expected_schema, datum):
+        return isinstance(datum, (int, float, long, decimal.Decimal))
+
+    def convert(self, writers_schema, value):
         if not isinstance(value, (int, float, long, decimal.Decimal)):
             raise Exception('Wrong type for decimal conversion')
         return str(value)
@@ -74,7 +81,10 @@ class DateLogicalTypeProcessor(LogicalTypeProcessor):
     def can_convert(self, writers_schema):
         return isinstance(writers_schema, schema.PrimitiveSchema) and writers_schema.type == 'int'
 
-    def convert(self, value):
+    def validate(self, expected_schema, datum):
+        return isinstance(datum, datetime.date)
+
+    def convert(self, writers_schema, value):
         if not isinstance(value, datetime.date):
             raise Exception("Wrong type for date conversion")
         return (value - EPOCH_DATE).total_seconds() // SECONDS_IN_DAY
@@ -103,7 +113,10 @@ class TimeMicrosLogicalTypeProcessor(LogicalTypeProcessor):
     def can_convert(self, writers_schema):
         return isinstance(writers_schema, schema.PrimitiveSchema) and writers_schema.type == 'long'
 
-    def convert(self, value):
+    def validate(self, expected_schema, datum):
+        return isinstance(datum, datetime.time)
+
+    def convert(self, writers_schema, value):
         if not isinstance(value, datetime.time):
             raise Exception('Wrong type for time conversion')
         return ((value.hour * 60 + value.minute) * 60 + value.second) * 1000000 + value.microsecond
@@ -144,10 +157,10 @@ class TimeMillisLogicalTypeProcessor(TimeMicrosLogicalTypeProcessor):
     def can_convert(self, writers_schema):
         return isinstance(writers_schema, schema.PrimitiveSchema) and writers_schema.type == 'int'
 
-    def convert(self, value):
+    def convert(self, writers_schema, value):
         if not isinstance(value, datetime.time):
             raise Exception('Wrong type for time conversion')
-        return int(super(TimeMillisLogicalTypeProcessor, self).convert(value) // 1000)
+        return int(super(TimeMillisLogicalTypeProcessor, self).convert(writers_schema, value) // 1000)
 
     def convert_back(self, writers_schema, readers_schema, value):
         return super(TimeMillisLogicalTypeProcessor, self).convert_back(writers_schema, readers_schema, value * 1000)
@@ -164,7 +177,10 @@ class TimestampMicrosLogicalTypeProcessor(LogicalTypeProcessor):
     def can_convert(self, writers_schema):
         return isinstance(writers_schema, schema.PrimitiveSchema) and writers_schema.type == 'long'
 
-    def convert(self, value):
+    def validate(self, expected_schema, datum):
+        return isinstance(datum, datetime.datetime)
+
+    def convert(self, writers_schema, value):
         if not isinstance(value, datetime.datetime):
             if isinstance(value, datetime.date):
                 value = tzlocal.get_localzone().localize(
@@ -196,8 +212,8 @@ class TimestampMicrosLogicalTypeProcessor(LogicalTypeProcessor):
 
 
 class TimestampMillisLogicalTypeProcessor(TimestampMicrosLogicalTypeProcessor):
-    def convert(self, value):
-        return super(TimestampMillisLogicalTypeProcessor, self).convert(value) // 1000
+    def convert(self, writers_schema, value):
+        return super(TimestampMillisLogicalTypeProcessor, self).convert(writers_schema, value) // 1000
 
     def convert_back(self, writers_schema, readers_schema, value):
         return super(TimestampMillisLogicalTypeProcessor, self).convert_back(writers_schema, readers_schema,
@@ -266,9 +282,45 @@ class LogicalDatumWriter(io.DatumWriter):
         if logical_type:
             logical_type_handler = self.logical_types.get(logical_type)
             if logical_type_handler and logical_type_handler.can_convert(writers_schema):
-                return super(LogicalDatumWriter, self).write_data(writers_schema, logical_type_handler.convert(datum),
+                return super(LogicalDatumWriter, self).write_data(writers_schema,
+                                                                  logical_type_handler.convert(writers_schema, datum),
                                                                   encoder)
         return super(LogicalDatumWriter, self).write_data(writers_schema, datum, encoder)
+
+    def __validate(self, writers_schema, datum):
+        logical_type = writers_schema.get_prop('logicalType')
+        if logical_type:
+            lt = self.logical_types.get(logical_type)
+            if lt:
+                if lt.can_convert(writers_schema):
+                    if lt.validate(writers_schema, datum):
+                        return True
+                    return False
+
+        schema_type = writers_schema.type
+        if schema_type == 'array':
+            return (isinstance(datum, list) and
+                    False not in [self.__validate(writers_schema.items, d) for d in datum])
+        elif schema_type == 'map':
+            return (isinstance(datum, dict) and
+                    False not in [isinstance(k, basestring) for k in datum.keys()] and
+                    False not in
+                    [self.__validate(writers_schema.values, v) for v in datum.values()])
+        elif schema_type in ['union', 'error_union']:
+            return True in [self.__validate(s, datum) for s in writers_schema.schemas]
+        elif schema_type in ['record', 'error', 'request']:
+            return (isinstance(datum, dict) and
+                    False not in
+                    [self.__validate(f.type, datum.get(f.name)) for f in writers_schema.fields])
+
+        return io.validate(writers_schema, datum)
+
+    def write(self, datum, encoder):
+        # validate datum
+        if not self.__validate(self.writers_schema, datum):
+            raise io.AvroTypeException(self.writers_schema, datum)
+
+        self.write_data(self.writers_schema, datum, encoder)
 
 
 def patch_logical_types():

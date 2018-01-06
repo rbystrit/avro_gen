@@ -144,7 +144,10 @@ name of your logical type. A sample implementation looks as follows:
         def can_convert(self, writers_schema):
             return isinstance(writers_schema, schema.PrimitiveSchema) and writers_schema.type == 'int'
     
-        def convert(self, value):
+        def validate(self, expected_schema, datum):
+            return isinstance(datum, datetime.date)
+    
+        def convert(self, writers_schema, value):
             if not isinstance(value, datetime.date):
                 raise Exception("Wrong type for date conversion")
             return (value - EPOCH_DATE).total_seconds() // SECONDS_IN_DAY
@@ -165,6 +168,7 @@ name of your logical type. A sample implementation looks as follows:
             return ((
                         'logical.DateLogicalTypeProcessor().convert_back(None, None, %s)' % value) if value is not None
                     else 'datetime.datetime.today().date()')
+
 
 To read/write data with logical type support, use generated SpecificDatumReader 
 and a LogicalDatumWriter from avro.logical.

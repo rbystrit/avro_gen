@@ -11,6 +11,7 @@ import avrogen.schema
 import avrogen.protocol
 import logging
 import sys
+import datetime
 
 
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -430,6 +431,22 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertEqual(tweet.metadata.venuePoint.known, tweet1.metadata.venuePoint.known)
         self.assertEqual(tweet.metadata.venuePoint.data, tweet1.metadata.venuePoint.data)
 
+    def test_defaults(self):
+        schema_json = self.read_schema('record_with_default_nested.json')
+        avrogen.schema.write_schema_files(schema_json, self.output_dir, use_logical_types=True)
+        importlib.import_module(self.test_name)
+        schema_classes = importlib.import_module('.schema_classes', self.test_name)
+        self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
+        self.assertTrue(hasattr(schema_classes.SchemaClasses, 'sample_recordClass'))
+
+        record = schema_classes.SchemaClasses.sample_recordClass()
+
+        self.assertEquals(record.withDefault.field1, 42)
+        self.assertEquals(record.nullableWithDefault.field1, 42)
+        self.assertEquals(record.nullableRecordWithLogicalType.field1, datetime.date(1970, 2, 12))
+        self.assertEquals(record.nullableWithLogicalType, datetime.date(1970, 2, 12))
+        self.assertEquals(record.multiNullable, 42)
+
     def primitive_type_tester(self, schema_name):
         schema_json = self.read_schema(schema_name)
         avrogen.schema.write_schema_files(schema_json, self.output_dir)
@@ -439,5 +456,5 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
 
 
-if __name__ == "__main__":
-    unittest.main()
+# if __name__ == "__main__":
+#     unittest.main()

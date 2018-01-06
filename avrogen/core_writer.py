@@ -28,7 +28,7 @@ __PRIMITIVE_TYPE_MAPPING = {
 
 def convert_default(full_name, idx, do_json=True):
     if do_json:
-        return ('_json_converter.from_json_dict(SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].default,'
+        return ('_json_converter.from_json_object(SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].default,'
                + ' writers_schema=SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].type)').format(
             full_name=full_name, idx=idx
         )

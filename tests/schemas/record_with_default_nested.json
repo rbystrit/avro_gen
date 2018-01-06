@@ -1,0 +1,93 @@
+{
+  "type": "record",
+  "name": "sample_record",
+  "fields": [
+    {
+      "name": "withDefault",
+      "type": {
+        "name": "recordWithDefault",
+        "type": "record",
+        "fields": [
+          {
+            "name": "field1",
+            "type": "int"
+          }
+        ]
+      },
+      "default": {
+        "field1": 42
+      }
+    },
+    {
+      "name": "nullableWithDefault",
+      "type": [
+        "null",
+        {
+          "name": "nullableRecordWithDefault",
+          "type": "record",
+          "fields": [
+            {
+              "name": "field1",
+              "type": "int"
+            }
+          ]
+        }
+      ],
+      "default": {
+        "field1": 42
+      }
+    },
+    {
+      "name": "nullableRecordWithLogicalType",
+      "type": [
+        "null",
+        {
+          "name": "nullableRecordWithDefaultLogicalType",
+          "type": "record",
+          "fields": [
+            {
+              "name": "field1",
+              "type": {
+                "type": "int",
+                "logicalType": "date"
+              }
+            }
+          ]
+        }
+      ],
+      "default": {
+        "field1": 42
+      }
+    },
+    {
+      "name": "nullableWithLogicalType",
+      "type": [
+        "null",
+        {
+          "type": "int",
+          "logicalType": "date"
+        }
+      ],
+      "default": 42
+    },
+    {
+      "name": "multiNullable",
+      "type": [
+        "null",
+        "int",
+        {
+          "name": "nullableRecordWithDefault1",
+          "type": "record",
+          "fields": [
+            {
+              "name": "field1",
+              "type": "int"
+            }
+          ]
+        }
+
+      ],
+      "default": 42
+    }
+  ]
+}
