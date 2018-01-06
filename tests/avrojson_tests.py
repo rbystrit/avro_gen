@@ -104,12 +104,24 @@ class AvroJsonTest(unittest.TestCase):
                        date2=datetime.date(1970, 2, 12))
 
         self.assertDictEqual(self.converter_lt.from_json_object(self.converter_lt.to_json_object(input, writers_schema),
-                                                             writers_schema, writers_schema),
+                                                                writers_schema, writers_schema),
                              output1)
         self.assertDictEqual(self.converter_lt.from_json_object(self.converter_lt.to_json_object(input, writers_schema),
-                                                             writers_schema, readers_schema),
+                                                                writers_schema, readers_schema),
                              output2)
 
     @unittest.expectedFailure
     def test_schema_mismatch(self):
         self.converter.from_json_object(42, schema.make_avsc_object('int'), schema.make_avsc_object('string'))
+
+    def test_schema_discovery(self):
+        from avrogen.dict_wrapper import DictWrapper
+
+        class DD(DictWrapper):
+            RECORD_SCHEMA = schema.make_avsc_object(
+                dict(type='record', name='record1', fields=[dict(name='f1', type='int')]))
+
+            def __init__(self, **kwargs):
+                super(DD, self).__init__(kwargs)
+
+        self.assertDictEqual(self.converter.to_json_object(DD(f1=42)), dict(f1=42))

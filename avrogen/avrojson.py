@@ -53,7 +53,7 @@ class AvroJsonConverter(object):
 
     def to_json_object(self, data_obj, writers_schema=None):
         if hasattr(type(data_obj), 'RECORD_SCHEMA'):
-            writers_schema = type(data_obj).writers_schema
+            writers_schema = type(data_obj).RECORD_SCHEMA
 
         if writers_schema is None:
             raise Exception("Could not determine writer's schema from the object type and schema was not passed")
