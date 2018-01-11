@@ -14,7 +14,12 @@ import tzlocal
 
 EPOCH_DATE = datetime.date(1970, 1, 1)
 SECONDS_IN_DAY = 24 * 60 * 60
-EPOCH_TT = time.mktime((1970, 1, 1, 0, 0, 0, 0, 0, 0))
+
+# below doesn't work for time zones which are ahead of UTC,
+# so will need to switch to datetime arithmetic
+#EPOCH_TT = time.mktime((1970, 1, 1, 0, 0, 0, 0, 0, 0))
+
+EPOCH_TT = -tzlocal.get_localzone().localize(datetime.datetime(1970,1,1)).utcoffset().total_seconds()
 
 
 class LogicalTypeProcessor(object, six.with_metaclass(abc.ABCMeta)):

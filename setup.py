@@ -20,7 +20,7 @@ else:
 
 setup(
     name='avro-gen',
-    version='0.2.7',
+    version='0.2.8',
 
     description='Avro record class and specific record reader generator',
     long_description=long_description,
