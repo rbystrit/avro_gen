@@ -20,7 +20,7 @@ else:
 
 setup(
     name='avro-gen',
-    version='0.2.8',
+    version='0.3.0',
 
     description='Avro record class and specific record reader generator',
     long_description=long_description,
@@ -45,6 +45,8 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ],
 
     keywords='avro class generator',
@@ -53,5 +55,7 @@ setup(
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     package_data={'': ['README.md']},
-    install_requires=['avro >= 1.8.0', 'six', 'frozendict', 'tzlocal', 'pytz'],
+    install_requires=["avro >= 1.8.0 ; python_version<'3.0'",
+                      "avro_python3 >= 1.8.0 ; python_version>'3.0'",
+                      'six', 'frozendict', 'tzlocal', 'pytz'],
 )

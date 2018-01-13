@@ -5,6 +5,10 @@ import unittest
 import six
 import datetime
 
+if six.PY3:
+    make_avsc_object = schema.SchemaFromJSONData
+else:
+    make_avsc_object = schema.make_avsc_object
 
 class AvroJsonTest(unittest.TestCase):
     converter = avrojson.AvroJsonConverter()
@@ -12,7 +16,7 @@ class AvroJsonTest(unittest.TestCase):
 
     def test_primitive_types(self):
         primitives = dict(int=1, float=2.0,
-                          string='3.0', bytes=bytes('4.0'), boolean=True, long=5L, double=6.0, null=None)
+                          string='3.0', bytes='4.0'.encode('utf-8'), boolean=True, long=5, double=6.0, null=None)
 
         for t, v in six.iteritems(primitives):
             test_schema = schema.PrimitiveSchema(t)
@@ -26,22 +30,22 @@ class AvroJsonTest(unittest.TestCase):
 
     def test_fixed(self):
         test_schema = schema.FixedSchema('test_enum', None, 5, schema.Names())
-        self.assertEquals(self.converter.to_json_object('A' * 5, test_schema), 'A' * 5)
-        self.assertEquals(self.converter.from_json_object('B' * 5, test_schema), 'B' * 5)
+        self.assertEquals(self.converter.to_json_object(('A' * 5).encode('utf-8'), test_schema), ('A' * 5).encode('utf-8'))
+        self.assertEquals(self.converter.from_json_object(('B' * 5).encode('utf-8'), test_schema), ('B' * 5).encode('utf-8'))
 
     def test_array(self):
-        test_schema = schema.make_avsc_object({'type': 'array', 'items': 'int'})
+        test_schema = make_avsc_object({'type': 'array', 'items': 'int'})
         self.assertEquals(self.converter.to_json_object([1, 2, 3], test_schema), [1, 2, 3])
         self.assertEquals(self.converter.from_json_object([1, 2, 3], test_schema), [1, 2, 3])
 
     def test_map(self):
-        test_schema = schema.make_avsc_object({'type': 'map', 'values': 'int'})
+        test_schema = make_avsc_object({'type': 'map', 'values': 'int'})
         d = dict(a=1, b=2, c=3)
         self.assertDictEqual(self.converter.to_json_object(d, test_schema), d)
         self.assertDictEqual(self.converter.from_json_object(d, test_schema), d)
 
     def test_union(self):
-        test_schema = schema.make_avsc_object(['int', 'string', 'null'])
+        test_schema = make_avsc_object(['int', 'string', 'null'])
         result1 = dict(string='a')
         result2 = dict(int=2)
 
@@ -55,7 +59,7 @@ class AvroJsonTest(unittest.TestCase):
         self.assertEquals(self.converter.from_json_object(result2, test_schema), 2)
 
     def test_record(self):
-        test_schema = schema.make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
+        test_schema = make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
             {'name': 'field1', 'type': 'int'},
             {'name': 'field2', 'type': 'string'}
         ]})
@@ -65,12 +69,12 @@ class AvroJsonTest(unittest.TestCase):
         self.assertDictEqual(self.converter.from_json_object(d, test_schema), d)
 
     def test_schema_evolution(self):
-        writers_schema = schema.make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
+        writers_schema = make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
             {'name': 'field1', 'type': 'int'},
             {'name': 'field2', 'type': 'string'}
         ]})
 
-        readers_schema = schema.make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
+        readers_schema = make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
             {'name': 'field1', 'type': 'int'},
             {'name': 'field2', 'type': 'string'},
             {'name': 'field3', 'type': 'double', 'default': 3.0}
@@ -84,13 +88,13 @@ class AvroJsonTest(unittest.TestCase):
                              output)
 
     def test_logical_type(self):
-        writers_schema = schema.make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
+        writers_schema = make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
             {'name': 'field1', 'type': 'int'},
             {'name': 'field2', 'type': 'string'},
             {'name': 'date1', 'type': {'type': 'int', 'logicalType': 'date'}}
         ]})
 
-        readers_schema = schema.make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
+        readers_schema = make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
             {'name': 'field1', 'type': 'int'},
             {'name': 'field2', 'type': 'string'},
             {'name': 'field3', 'type': 'double', 'default': 3.0},
@@ -112,13 +116,13 @@ class AvroJsonTest(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_schema_mismatch(self):
-        self.converter.from_json_object(42, schema.make_avsc_object('int'), schema.make_avsc_object('string'))
+        self.converter.from_json_object(42, make_avsc_object('int'), make_avsc_object('string'))
 
     def test_schema_discovery(self):
         from avrogen.dict_wrapper import DictWrapper
 
         class DD(DictWrapper):
-            RECORD_SCHEMA = schema.make_avsc_object(
+            RECORD_SCHEMA = make_avsc_object(
                 dict(type='record', name='record1', fields=[dict(name='f1', type='int')]))
 
             def __init__(self, **kwargs):

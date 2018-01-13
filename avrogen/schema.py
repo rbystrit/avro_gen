@@ -1,14 +1,24 @@
-import cStringIO as StringIO
+
 import json
 import os
-
+import six
 from avro import schema
 
-from .core_writer import generate_namespace_modules
+if six.PY3:
+    from io import StringIO
+else:
+    from cStringIO import StringIO
+
+
+if six.PY3:
+    from avro.schema import SchemaFromJSONData as make_avsc_object
+else:
+    from avro.schema import make_avsc_object
+
+from .core_writer import generate_namespace_modules, clean_fullname
 from .tabbed_writer import TabbedWriter
 from .core_writer import write_preamble, start_namespace, write_schema_record, write_enum, write_read_file
 from .core_writer import write_get_schema, write_reader_impl
-
 import logging
 
 logger = logging.getLogger('avrogen.schema')
@@ -32,12 +42,12 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
 
     custom_imports = custom_imports or []
     names = schema.Names()
-    schema.make_avsc_object(json.loads(schema_json), names)
+    make_avsc_object(json.loads(schema_json), names)
 
-    names = [k for k in names.names.iteritems() if isinstance(k[1], (schema.RecordSchema, schema.EnumSchema))]
-    names = sorted(names, lambda x, y: cmp(x[0], y[0]))
+    names = [k for k in six.iteritems(names.names) if isinstance(k[1], (schema.RecordSchema, schema.EnumSchema))]
+    names = sorted(names, key=lambda x: x[0])
 
-    main_out = StringIO.StringIO()
+    main_out = StringIO()
     writer = TabbedWriter(main_out)
 
     write_preamble(writer, use_logical_types, custom_imports)
@@ -52,13 +62,13 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
     current_namespace = tuple()
 
     for name, field_schema in names:  # type: str, schema.Schema
+        name = clean_fullname(name)
         namespace = tuple(name.split('.')[:-1])
-
         if namespace != current_namespace:
             start_namespace(current_namespace, namespace, writer)
             current_namespace = namespace
         if isinstance(field_schema, schema.RecordSchema):
-            logger.debug('Writing schema: %s', field_schema.fullname)
+            logger.debug('Writing schema: %s', clean_fullname(field_schema.fullname))
             write_schema_record(field_schema, writer, use_logical_types)
         elif isinstance(field_schema, schema.EnumSchema):
             logger.debug('Writing enum: %s', field_schema.fullname)
@@ -69,7 +79,7 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
     writer.tab()
 
     for name, field_schema in names:
-        writer.write("'%s': SchemaClasses.%sClass,\n" % (field_schema.fullname, field_schema.fullname))
+        writer.write("'%s': SchemaClasses.%sClass,\n" % (clean_fullname(field_schema.fullname), clean_fullname(field_schema.fullname)))
 
     writer.untab()
     writer.write('\n}\n')
@@ -78,7 +88,7 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
 
     value = main_out.getvalue()
     main_out.close()
-    return value, [name[0] for name in names]
+    return value, [clean_fullname(name[0]) for name in names]
 
 
 def write_schema_preamble(writer):
@@ -92,7 +102,7 @@ def write_schema_preamble(writer):
     writer.write('\n\ndef __get_names_and_schema(file_name):')
     with writer.indent():
         writer.write('\nnames = avro_schema.Names()')
-        writer.write('\nschema = avro_schema.make_avsc_object(json.loads(__read_file(file_name)), names)')
+        writer.write('\nschema = make_avsc_object(json.loads(__read_file(file_name)), names)')
         writer.write('\nreturn names, schema')
     writer.write('\n\n__NAMES, SCHEMA = __get_names_and_schema(os.path.join(os.path.dirname(__file__), "schema.avsc"))')
 
@@ -103,7 +113,7 @@ def write_populate_schemas(writer):
     :param writer:
     :return:
     """
-    writer.write('\n__SCHEMAS = dict((n.fullname, n) for n in __NAMES.names.itervalues())')
+    writer.write('\n__SCHEMAS = dict((n.fullname.lstrip("."), n) for n in six.itervalues(__NAMES.names))')
 
 
 def write_namespace_modules(ns_dict, output_folder):
@@ -114,7 +124,7 @@ def write_namespace_modules(ns_dict, output_folder):
     :param output_folder:
     :return:
     """
-    for ns in ns_dict.iterkeys():
+    for ns in six.iterkeys(ns_dict):
         with open(os.path.join(output_folder, ns.replace('.', os.path.sep), "__init__.py"), "w+") as f:
             currency = '.'
             if ns != '':

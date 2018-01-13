@@ -1,5 +1,5 @@
 from . import namespace as ns_
-from .core_writer import write_defaults, write_fields
+from .core_writer import write_defaults, write_fields, clean_fullname
 
 
 def write_protocol_request(message, namespace, writer, use_logical_types):
@@ -11,7 +11,7 @@ def write_protocol_request(message, namespace, writer, use_logical_types):
     :return:
     """
 
-    fullname = ns_.make_fullname(namespace, message.name)
+    fullname = ns_.make_fullname(namespace, clean_fullname(message.name))
     namespace, type_name = ns_.split_fullname(fullname)
 
     writer.write('''\nclass {name}RequestClass(DictWrapper):'''.format(name=type_name))
@@ -19,7 +19,7 @@ def write_protocol_request(message, namespace, writer, use_logical_types):
     with writer.indent():
         writer.write("\n\n")
 
-        writer.write('\nRECORD_SCHEMA = PROTOCOL.messages["%s"].request' % message.name)
+        writer.write('\nRECORD_SCHEMA = PROTOCOL_MESSAGES["%s"].request' % clean_fullname(message.name))
 
         writer.write('\n\n\ndef __init__(self, inner_dict=None):')
         with writer.indent():

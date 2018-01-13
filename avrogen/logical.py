@@ -12,6 +12,9 @@ import time
 import pytz
 import tzlocal
 
+if six.PY3:
+    long = int
+
 EPOCH_DATE = datetime.date(1970, 1, 1)
 SECONDS_IN_DAY = 24 * 60 * 60
 
@@ -262,7 +265,7 @@ class LogicalDatumReader(io.DatumReader):
         :return:
         """
         result = super(LogicalDatumReader, self).read_data(writers_schema, readers_schema, decoder)
-        logical_type = readers_schema.get_prop('logicalType')
+        logical_type = readers_schema.props.get('logicalType')
         if logical_type:
             logical_type_handler = self.logical_types.get(logical_type)
             if logical_type_handler and logical_type_handler.does_match(writers_schema, readers_schema):
@@ -283,7 +286,7 @@ class LogicalDatumWriter(io.DatumWriter):
         self.logical_types = logical_types
 
     def write_data(self, writers_schema, datum, encoder):
-        logical_type = writers_schema.get_prop('logicalType')
+        logical_type = writers_schema.props.get('logicalType')
         if logical_type:
             logical_type_handler = self.logical_types.get(logical_type)
             if logical_type_handler and logical_type_handler.can_convert(writers_schema):
@@ -293,7 +296,7 @@ class LogicalDatumWriter(io.DatumWriter):
         return super(LogicalDatumWriter, self).write_data(writers_schema, datum, encoder)
 
     def __validate(self, writers_schema, datum):
-        logical_type = writers_schema.get_prop('logicalType')
+        logical_type = writers_schema.props.get('logicalType')
         if logical_type:
             lt = self.logical_types.get(logical_type)
             if lt:

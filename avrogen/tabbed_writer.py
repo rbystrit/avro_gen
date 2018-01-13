@@ -1,3 +1,5 @@
+import six
+
 class TabbedWriter(object):
     class Indent(object):
         def __init__(self, writer):
@@ -16,7 +18,7 @@ class TabbedWriter(object):
         self.__current_tab = ''
 
     def write(self, text):
-        assert isinstance(text, (str, unicode))
+        assert isinstance(text, six.string_types)
 
         start_pos = 0
         last_pos = text.find('\n')

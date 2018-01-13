@@ -10,7 +10,12 @@ import datetime
 import pytz
 import tzlocal
 import time
+import six
 
+if six.PY3:
+    make_avsc_object = schema.SchemaFromJSONData
+else:
+    make_avsc_object = schema.make_avsc_object
 
 class LogicalTypeTest(unittest.TestCase):
     @contextlib.contextmanager
@@ -24,9 +29,9 @@ class LogicalTypeTest(unittest.TestCase):
     def test_decimal(self):
         p = DecimalLogicalTypeProcessor()
 
-        test_schema1 = schema.make_avsc_object('string')
-        test_schema2 = schema.make_avsc_object('int')
-        test_schema3 = schema.make_avsc_object(
+        test_schema1 = make_avsc_object('string')
+        test_schema2 = make_avsc_object('int')
+        test_schema3 = make_avsc_object(
             {'type': 'record', 'name': 'test2', 'fields': [{'name': 'f1', 'type': 'int'}]})
 
         self.assertTrue(p.can_convert(test_schema1))
@@ -38,7 +43,7 @@ class LogicalTypeTest(unittest.TestCase):
 
         self.assertEquals(p.convert(test_schema1, 1234), '1234')
         self.assertEquals(p.convert(test_schema1, 1234.5), '1234.5')
-        self.assertEquals(p.convert(test_schema1, 12345L), '12345')
+        self.assertEquals(p.convert(test_schema1, 12345), '12345')
         self.assertEquals(p.convert(test_schema1, decimal.Decimal('12345.678')), '12345.678')
 
         with self._exception():
@@ -49,9 +54,9 @@ class LogicalTypeTest(unittest.TestCase):
     def test_date(self):
         p = DateLogicalTypeProcessor()
 
-        test_schema1 = schema.make_avsc_object('string')
-        test_schema2 = schema.make_avsc_object('int')
-        test_schema3 = schema.make_avsc_object(
+        test_schema1 = make_avsc_object('string')
+        test_schema2 = make_avsc_object('int')
+        test_schema3 = make_avsc_object(
             {'type': 'record', 'name': 'test2', 'fields': [{'name': 'f1', 'type': 'int'}]})
 
         self.assertFalse(p.can_convert(test_schema1))
@@ -71,9 +76,9 @@ class LogicalTypeTest(unittest.TestCase):
     def test_time_micros(self):
         p = TimeMicrosLogicalTypeProcessor()
 
-        test_schema1 = schema.make_avsc_object('string')
-        test_schema2 = schema.make_avsc_object('long')
-        test_schema3 = schema.make_avsc_object(
+        test_schema1 = make_avsc_object('string')
+        test_schema2 = make_avsc_object('long')
+        test_schema3 = make_avsc_object(
             {'type': 'record', 'name': 'test2', 'fields': [{'name': 'f1', 'type': 'int'}]})
 
         self.assertFalse(p.can_convert(test_schema1))
@@ -84,18 +89,18 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertTrue(p.does_match(test_schema2, test_schema2))
         self.assertFalse(p.does_match(test_schema3, test_schema3))
 
-        self.assertEquals(p.convert(test_schema2, datetime.time(23, 24, 25, 123456)), 84265123456L)
+        self.assertEquals(p.convert(test_schema2, datetime.time(23, 24, 25, 123456)), 84265123456)
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(p.convert_back(test_schema2, test_schema2, 84265123456L), datetime.time(23, 24, 25, 123456))
+        self.assertEquals(p.convert_back(test_schema2, test_schema2, 84265123456), datetime.time(23, 24, 25, 123456))
 
     def test_time_millis(self):
         p = TimeMillisLogicalTypeProcessor()
 
-        test_schema1 = schema.make_avsc_object('string')
-        test_schema2 = schema.make_avsc_object('int')
-        test_schema3 = schema.make_avsc_object(
+        test_schema1 = make_avsc_object('string')
+        test_schema2 = make_avsc_object('int')
+        test_schema3 = make_avsc_object(
             {'type': 'record', 'name': 'test2', 'fields': [{'name': 'f1', 'type': 'int'}]})
 
         self.assertFalse(p.can_convert(test_schema1))
@@ -106,18 +111,18 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertTrue(p.does_match(test_schema2, test_schema2))
         self.assertFalse(p.does_match(test_schema3, test_schema3))
 
-        self.assertEquals(p.convert(test_schema2, datetime.time(23, 24, 25, 123456)), 84265123L)
+        self.assertEquals(p.convert(test_schema2, datetime.time(23, 24, 25, 123456)), 84265123)
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(p.convert_back(test_schema2, test_schema2, 84265123L), datetime.time(23, 24, 25, 123000))
+        self.assertEquals(p.convert_back(test_schema2, test_schema2, 84265123), datetime.time(23, 24, 25, 123000))
 
     def test_timestamp_micros(self):
         p = TimestampMicrosLogicalTypeProcessor()
 
-        test_schema1 = schema.make_avsc_object('string')
-        test_schema2 = schema.make_avsc_object('long')
-        test_schema3 = schema.make_avsc_object(
+        test_schema1 = make_avsc_object('string')
+        test_schema2 = make_avsc_object('long')
+        test_schema3 = make_avsc_object(
             {'type': 'record', 'name': 'test2', 'fields': [{'name': 'f1', 'type': 'int'}]})
 
         self.assertFalse(p.can_convert(test_schema1))
@@ -133,7 +138,7 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertEquals(p.convert(test_schema2, pytz.UTC.localize(datetime.datetime(2015, 5, 1, microsecond=123456))),
                           1430438400123456)
 
-        offset_res = 1430452800123456L
+        offset_res = 1430452800123456
         self.assertEquals(p.convert(test_schema2,
                                     pytz.timezone('America/New_York').localize(
                                         datetime.datetime(2015, 5, 1, 0, 0, 0, microsecond=123456))),
@@ -148,9 +153,9 @@ class LogicalTypeTest(unittest.TestCase):
     def test_timestamp_millis(self):
         p = TimestampMillisLogicalTypeProcessor()
 
-        test_schema1 = schema.make_avsc_object('string')
-        test_schema2 = schema.make_avsc_object('long')
-        test_schema3 = schema.make_avsc_object(
+        test_schema1 = make_avsc_object('string')
+        test_schema2 = make_avsc_object('long')
+        test_schema3 = make_avsc_object(
             {'type': 'record', 'name': 'test2', 'fields': [{'name': 'f1', 'type': 'int'}]})
 
         self.assertFalse(p.can_convert(test_schema1))
@@ -166,7 +171,7 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertEquals(p.convert(test_schema2, datetime.datetime(2015, 5, 1, microsecond=123456, tzinfo=pytz.UTC)),
                           1430438400123)
 
-        offset_res = 1430452800123L
+        offset_res = 1430452800123
         self.assertEquals(
             p.convert(test_schema2,
                       pytz.timezone('America/New_York').localize(datetime.datetime(2015, 5, 1, microsecond=123456))),

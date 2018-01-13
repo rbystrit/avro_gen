@@ -6,13 +6,17 @@ import importlib
 import shutil
 from avro import io
 from avro import datafile, schema
-
+import tempfile
 import avrogen.schema
 import avrogen.protocol
 import logging
 import sys
 import datetime
+import six
 
+if six.PY3:
+    schema.parse = schema.Parse
+    schema.make_avsc_object = schema.SchemaFromJSONData
 
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 # logging.getLogger('avrogen.schema').setLevel(logging.DEBUG)
@@ -33,6 +37,9 @@ class GeneratorTestCase(unittest.TestCase):
     def tearDownClass(cls):
         if os.path.isdir(cls.TMP_DIR):
             shutil.rmtree(cls.TMP_DIR)
+
+        if os.path.exists(os.path.join(os.path.dirname(__file__), 'twitter_schema')):
+            shutil.rmtree(os.path.join(os.path.dirname(__file__), 'twitter_schema'))
 
     def setUp(self):
         tmp_dir = GeneratorTestCase.TMP_DIR
@@ -370,7 +377,7 @@ class GeneratorTestCase(unittest.TestCase):
         tweet.metadata.venuePoint.known = False
         tweet.metadata.venuePoint.data = None
 
-        tmp_file = os.tempnam()
+        tmp_file = tempfile.mktemp()
         with open(tmp_file, "w+b") as f:
             df = datafile.DataFileWriter(f, io.DatumWriter(), schema.parse(schema_json))
             df.append(tweet)
@@ -378,7 +385,7 @@ class GeneratorTestCase(unittest.TestCase):
 
         with open(tmp_file, "rb") as f:
             df = datafile.DataFileReader(f, SpecificDatumReader())
-            tweet1 = df.next()
+            tweet1 = next(df)
             df.close()
 
         self.assertEqual(tweet.ID, tweet1.ID)

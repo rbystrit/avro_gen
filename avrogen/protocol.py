@@ -1,11 +1,16 @@
-import cStringIO as StringIO
+import six
 import os
+
+if six.PY3:
+    from io import StringIO
+else:
+    from cStringIO import StringIO
 
 from avro import protocol, schema
 
 from . import namespace as ns_
 from .tabbed_writer import TabbedWriter
-from .core_writer import write_preamble, write_get_schema, start_namespace, write_reader_impl
+from .core_writer import write_preamble, write_get_schema, start_namespace, write_reader_impl, clean_fullname
 from .core_writer import write_schema_record, write_enum, write_read_file, generate_namespace_modules
 from .protocol_writer import write_protocol_request
 
@@ -28,7 +33,11 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
         avro_json_converter += '(use_logical_types=%s, schema_types=__SCHEMA_TYPES)' % use_logical_types
 
     custom_imports = custom_imports or []
-    proto = protocol.parse(protocol_json)
+
+    if six.PY3:
+        proto = protocol.Parse(protocol_json)
+    else:
+        proto = protocol.parse(protocol_json)
 
     schemas = []
     messages = []
@@ -39,23 +48,23 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
     for schema_idx, record_schema in enumerate(proto.types):
         if isinstance(record_schema, (schema.RecordSchema, schema.EnumSchema)):
             schemas.append((schema_idx, record_schema))
-            known_types.add(record_schema.fullname)
+            known_types.add(clean_fullname(record_schema.fullname))
 
-    for message in proto.messages.itervalues():
+    for message in (six.itervalues(proto.messages) if six.PY2 else proto.messages):
         messages.append((message, message.request, message.response if isinstance(message.response, (
-            schema.EnumSchema, schema.RecordSchema)) and message.response.fullname not in known_types else None))
+            schema.EnumSchema, schema.RecordSchema)) and clean_fullname(message.response.fullname) not in known_types else None))
         if isinstance(message.response, (schema.EnumSchema, schema.RecordSchema)):
-            known_types.add(message.response.fullname)
+            known_types.add(clean_fullname(message.response.fullname))
 
     namespaces = {}
     for schema_idx, record_schema in schemas:
-        ns, name = ns_.split_fullname(record_schema.fullname)
+        ns, name = ns_.split_fullname(clean_fullname(record_schema.fullname))
         if ns not in namespaces:
             namespaces[ns] = {'requests': [], 'records': [], 'responses': []}
         namespaces[ns]['records'].append((schema_idx, record_schema))
 
     for message, request, response in messages:
-        fullname = ns_.make_fullname(proto.namespace, message.name)
+        fullname = ns_.make_fullname(proto.namespace, clean_fullname(message.name))
         ns, name = ns_.split_fullname(fullname)
         if ns not in namespaces:
             namespaces[ns] = {'requests': [], 'records': [], 'responses': []}
@@ -63,7 +72,7 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
         if response:
             namespaces[ns]['responses'].append(message)
 
-    main_out = StringIO.StringIO()
+    main_out = StringIO()
     writer = TabbedWriter(main_out)
 
     write_preamble(writer, use_logical_types, custom_imports)
@@ -87,14 +96,14 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
                 start_namespace(current_namespace, namespace, writer)
 
             for idx, record in namespaces[ns]['records']:
-                schema_names.add(record.fullname)
+                schema_names.add(clean_fullname(record.fullname))
                 if isinstance(record, schema.RecordSchema):
                     write_schema_record(record, writer, use_logical_types)
                 elif isinstance(record, schema.EnumSchema):
                     write_enum(record, writer)
 
             for message in namespaces[ns]['responses']:
-                schema_names.add(message.response.fullname)
+                schema_names.add(clean_fullname(message.response.fullname))
                 if isinstance(message.response, schema.RecordSchema):
                     write_schema_record(message.response, writer, use_logical_types)
                 elif isinstance(message.response, schema.EnumSchema):
@@ -119,7 +128,7 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
                 start_namespace(current_namespace, namespace, writer)
 
             for message in namespaces[ns]['requests']:
-                request_names.add(ns_.make_fullname(proto.namespace, message.name))
+                request_names.add(ns_.make_fullname(proto.namespace, clean_fullname(message.name)))
                 write_protocol_request(message, proto.namespace, writer, use_logical_types)
 
         writer.write('\n\npass')
@@ -132,13 +141,15 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
     all_ns = sorted(namespaces.keys())
     for ns in all_ns:
         for idx, record in (namespaces[ns]['records'] or []):
-            writer.write("'%s': SchemaClasses.%sClass,\n" % (record.fullname, record.fullname))
+            writer.write("'%s': SchemaClasses.%sClass,\n" % (clean_fullname(record.fullname),
+                                                             clean_fullname(record.fullname)))
 
         for message in (namespaces[ns]['responses'] or []):
-            writer.write("'%s': SchemaClasses.%sClass,\n" % (message.response.fullname, message.response.fullname))
+            writer.write("'%s': SchemaClasses.%sClass,\n" % (clean_fullname(message.response.fullname),
+                                                             clean_fullname(message.response.fullname)))
 
         for message in (namespaces[ns]['requests'] or []):
-            name = ns_.make_fullname(proto.namespace, message.name)
+            name = ns_.make_fullname(proto.namespace, clean_fullname(message.name))
             writer.write("'%s': RequestClasses.%sRequestClass, \n" % (name, name))
 
     writer.untab()
@@ -169,7 +180,7 @@ def write_protocol_preamble(writer, use_logical_types, custom_imports):
         writer.write('\nfrom avrogen import logical')
     writer.write('\n\ndef __get_protocol(file_name):')
     with writer.indent():
-        writer.write('\nproto = avro_protocol.parse(__read_file(file_name))')
+        writer.write('\nproto = avro_protocol.Parse(__read_file(file_name)) if six.PY3 else avro_protocol.parse(__read_file(file_name))')
         writer.write('\nreturn proto')
     writer.write('\n\nPROTOCOL = __get_protocol(os.path.join(os.path.dirname(__file__), "protocol.avpr"))')
 
@@ -184,11 +195,13 @@ def write_populate_schemas(writer):
     with writer.indent():
         writer.write('\n__SCHEMAS[rec.fullname] = rec')
 
-    writer.write('\nfor resp in PROTOCOL.messages.itervalues():')
+    writer.write('\nfor resp in (six.itervalues(PROTOCOL.messages) if six.PY2 else PROTOCOL.messages):')
     with writer.indent():
         writer.write('\nif isinstance(resp.response, (avro_schema.RecordSchema, avro_schema.EnumSchema)):')
         with writer.indent():
             writer.write('\n__SCHEMAS[resp.response.fullname] = resp.response')
+
+    writer.write('\nPROTOCOL_MESSAGES = {m.name.lstrip("."):m for m in (six.itervalues(PROTOCOL.messages) if six.PY2 else PROTOCOL.messages)}\n')
 
 
 def write_protocol_files(protocol_json, output_folder, use_logical_types=False, custom_imports=None):
@@ -244,7 +257,7 @@ def write_namespace_modules(ns_dict, request_names, output_folder):
     :param output_folder:
     :return:
     """
-    for ns in ns_dict.iterkeys():
+    for ns in six.iterkeys(ns_dict):
         with open(os.path.join(output_folder, ns.replace('.', os.path.sep), "__init__.py"), "w+") as f:
             currency = '.'
             if ns != '':

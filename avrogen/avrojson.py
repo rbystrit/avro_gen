@@ -5,6 +5,11 @@ from . import logical
 from avro import schema
 from avro import io
 
+if six.PY3:
+    io_validate = io.Validate
+else:
+    io_validate = io.validate
+
 _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
 
 
@@ -15,17 +20,17 @@ class AvroJsonConverter(object):
         self.schema_types = schema_types or {}
 
     def validate(self, expected_schema, datum, skip_logical_types=False):
-        if self.use_logical_types and expected_schema.get_prop('logicalType') and not skip_logical_types \
-                and expected_schema.get_prop('logicalType') in self.logical_types:
-            return self.logical_types[expected_schema.get_prop('logicalType')].can_convert(expected_schema) \
-                   and self.logical_types[expected_schema.get_prop('logicalType')].validate(expected_schema, datum)
+        if self.use_logical_types and expected_schema.props.get('logicalType') and not skip_logical_types \
+                and expected_schema.props.get('logicalType') in self.logical_types:
+            return self.logical_types[expected_schema.props.get('logicalType')].can_convert(expected_schema) \
+                   and self.logical_types[expected_schema.props.get('logicalType')].validate(expected_schema, datum)
         schema_type = expected_schema.type
         if schema_type == 'array':
             return (isinstance(datum, list) and
                     False not in [self.validate(expected_schema.items, d, skip_logical_types) for d in datum])
         elif schema_type == 'map':
             return (isinstance(datum, dict) and
-                    False not in [isinstance(k, basestring) for k in datum.keys()] and
+                    False not in [isinstance(k, six.string_types) for k in datum.keys()] and
                     False not in
                     [self.validate(expected_schema.values, v, skip_logical_types) for v in datum.values()])
         elif schema_type in ['union', 'error_union']:
@@ -35,7 +40,7 @@ class AvroJsonConverter(object):
                     False not in
                     [self.validate(f.type, datum.get(f.name), skip_logical_types) for f in expected_schema.fields])
 
-        return io.validate(expected_schema, datum)
+        return io_validate(expected_schema, datum)
 
     def from_json_object(self, json_obj, writers_schema=None, readers_schema=None):
         if readers_schema is None:
@@ -66,18 +71,18 @@ class AvroJsonConverter(object):
 
     def _fullname(self, schema_):
         if isinstance(schema_, schema.NamedSchema):
-            return schema_.fullname
+            return schema_.fullname if six.PY2 else schema_.fullname.lstrip('.')
         return schema_.type
 
     def _generic_to_json(self, data_obj, writers_schema):
-        if self.use_logical_types and writers_schema.get_prop('logicalType'):
-            lt = self.logical_types.get(writers_schema.get_prop('logicalType'))  # type: logical.LogicalTypeProcessor
+        if self.use_logical_types and writers_schema.props.get('logicalType'):
+            lt = self.logical_types.get(writers_schema.props.get('logicalType'))  # type: logical.LogicalTypeProcessor
             if lt.can_convert(writers_schema):
                 if lt.validate(writers_schema, data_obj):
                     data_obj = lt.convert(writers_schema, data_obj)
                 else:
                     raise schema.AvroException(
-                        'Wrong object for %s logical type' % writers_schema.get_prop('logicalType'))
+                        'Wrong object for %s logical type' % writers_schema.props.get('logicalType'))
 
         if writers_schema.type in _PRIMITIVE_TYPES:
             result = self._primitive_to_json(data_obj, writers_schema)
@@ -167,8 +172,8 @@ class AvroJsonConverter(object):
         return result
 
     def _logical_type_from_json(self, writers_schema, readers_schema, result):
-        if self.use_logical_types and readers_schema.get_prop('logicalType'):
-            lt = self.logical_types.get(readers_schema.get_prop('logicalType'))  # type: logical.LogicalTypeProcessor
+        if self.use_logical_types and readers_schema.props.get('logicalType'):
+            lt = self.logical_types.get(readers_schema.props.get('logicalType'))  # type: logical.LogicalTypeProcessor
             if lt and lt.does_match(writers_schema, readers_schema):
                 result = lt.convert_back(writers_schema, readers_schema, result)
         return result
@@ -217,7 +222,7 @@ class AvroJsonConverter(object):
         return decoded_record
 
     def _record_from_json(self, json_obj, writers_schema, readers_schema):
-        writer_fields = writers_schema.fields_dict
+        writer_fields = writers_schema.fields_dict if six.PY2 else writers_schema.field_map
 
         result = {}
         for field in readers_schema.fields:
