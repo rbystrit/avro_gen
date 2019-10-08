@@ -4,6 +4,7 @@ from avro import schema
 from . import namespace as ns_
 from . import logical
 import six
+import keyword
 
 if six.PY3:
     long = int
@@ -61,6 +62,9 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
 
     something_written = False
     for field in record.fields:
+        f_name = field.name
+        if keyword.iskeyword(field.name):
+            f_name =  field.name + get_field_type_name(field.type, use_logical_types)
         default_type, nullable = find_type_of_default(field.type)
         default_written = False
         if field.has_default:
@@ -70,7 +74,7 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
 
                 writer.write(
                     '\nself.{name} = {value}'
-                        .format(name=field.name,
+                        .format(name=f_name,
                                 value=lt.initializer(convert_default(my_full_name, idx=i,
                                                                      do_json=isinstance(default_type,
                                                                                         schema.RecordSchema)))))
@@ -78,40 +82,40 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
             elif isinstance(default_type, schema.RecordSchema):
                 writer.write(
                     '\nself.{name} = SchemaClasses.{full_name}Class({default})'
-                        .format(name=field.name, full_name=clean_fullname(default_type.fullname),
+                        .format(name=f_name, full_name=clean_fullname(default_type.fullname),
                                 default=convert_default(idx=i, full_name=my_full_name, do_json=True)))
                 default_written = True
             elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
                 writer.write('\nself.{name} = {default}'
-                             .format(name=field.name, default=convert_default(full_name=my_full_name, idx=i,
+                             .format(name=f_name, default=convert_default(full_name=my_full_name, idx=i,
                                                                               do_json=False)))
                 default_written = True
 
         if not default_written:
             default_written = True
             if nullable:
-                writer.write('\nself.{name} = None'.format(name=field.name))
+                writer.write('\nself.{name} = None'.format(name=f_name))
             elif use_logical_types and default_type.props.get('logicalType') \
                     and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
                 lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
-                writer.write('\nself.{name} = {default}'.format(name=field.name,
+                writer.write('\nself.{name} = {default}'.format(name=f_name,
                                                                 default=lt.initializer()))
             elif isinstance(default_type, schema.PrimitiveSchema) and not default_type.props.get('logicalType'):
-                writer.write('\nself.{name} = {default}'.format(name=field.name,
+                writer.write('\nself.{name} = {default}'.format(name=f_name,
                                                                 default=get_primitive_field_initializer(default_type)))
             elif isinstance(default_type, schema.EnumSchema):
                 writer.write('\nself.{name} = SchemaClasses.{full_name}Class.{sym}'
-                             .format(name=field.name, full_name=clean_fullname(default_type.fullname),
+                             .format(name=f_name, full_name=clean_fullname(default_type.fullname),
                                      sym=default_type.symbols[0]))
             elif isinstance(default_type, schema.MapSchema):
-                writer.write('\nself.{name} = dict()'.format(name=field.name))
+                writer.write('\nself.{name} = dict()'.format(name=f_name))
             elif isinstance(default_type, schema.ArraySchema):
-                writer.write('\nself.{name} = list()'.format(name=field.name))
+                writer.write('\nself.{name} = list()'.format(name=f_name))
             elif isinstance(default_type, schema.FixedSchema):
-                writer.write('\nself.{name} = str()'.format(name=field.name))
+                writer.write('\nself.{name} = str()'.format(name=f_name))
             elif isinstance(default_type, schema.RecordSchema):
                 writer.write('\nself.{name} = SchemaClasses.{full_name}Class()'
-                             .format(name=field.name, full_name=default_type.fullname))
+                             .format(name=f_name, full_name=default_type.fullname))
             else:
                 default_written = False
         something_written = something_written or default_written
@@ -139,22 +143,25 @@ def write_field(field, writer, use_logical_types):
     :param writer:
     :return:
     """
+    name = field.name
+    if keyword.iskeyword(field.name):
+        name =  field.name + get_field_type_name(field.type, use_logical_types)
     writer.write('''
 @property
-def {name}(self):
+def {name}(self) -> {ret_type_name}:
     """
     :rtype: {ret_type_name}
     """
     return self._inner_dict.get('{name}')
 
 @{name}.setter
-def {name}(self, value):
+def {name}(self, value: {ret_type_name}):
     #"""
     #:param {ret_type_name} value:
     #"""
     self._inner_dict['{name}'] = value
 
-'''.format(name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
+'''.format(name=name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
 
 
 def get_primitive_field_initializer(field_schema):
