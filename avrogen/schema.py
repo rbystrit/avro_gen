@@ -63,14 +63,14 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
             logger.debug('Writing enum: %s', field_schema.fullname)
             write_enum(field_schema, writer)
     writer.set_tab(0)
-    writer.write('\n__SCHEMA_TYPES = {\n')
+    writer.write('\n__SCHEMA_TYPES = {')
     writer.tab()
 
     for name, field_schema in names:
-        writer.write("'%s': %sClass,\n" % (clean_fullname(field_schema.name), clean_fullname(field_schema.name)))
+        writer.write("\n'%s': %sClass," % (clean_fullname(field_schema.name), clean_fullname(field_schema.name)))
 
     writer.untab()
-    writer.write('\n}\n')
+    writer.write('\n}\n\n')
 
     writer.write('_json_converter = %s\n\n' % avro_json_converter)
 

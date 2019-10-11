@@ -81,8 +81,8 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
                 default_written = True
             elif isinstance(default_type, schema.RecordSchema):
                 writer.write(
-                    '\nself.{name} = SchemaClasses.{full_name}Class({default})'
-                        .format(name=f_name, full_name=clean_fullname(default_type.fullname),
+                    '\nself.{name} = {full_name}Class({default})'
+                        .format(name=f_name, full_name=field.name,
                                 default=convert_default(idx=i, full_name=my_full_name, do_json=True)))
                 default_written = True
             elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
@@ -104,8 +104,8 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
                 writer.write('\nself.{name} = {default}'.format(name=f_name,
                                                                 default=get_primitive_field_initializer(default_type)))
             elif isinstance(default_type, schema.EnumSchema):
-                writer.write('\nself.{name} = SchemaClasses.{full_name}Class.{sym}'
-                             .format(name=f_name, full_name=clean_fullname(default_type.fullname),
+                writer.write('\nself.{name} = {full_name}Class.{sym}'
+                             .format(name=f_name, full_name=clean_fullname(default_type.name),
                                      sym=default_type.symbols[0]))
             elif isinstance(default_type, schema.MapSchema):
                 writer.write('\nself.{name} = dict()'.format(name=f_name))
@@ -114,8 +114,8 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
             elif isinstance(default_type, schema.FixedSchema):
                 writer.write('\nself.{name} = str()'.format(name=f_name))
             elif isinstance(default_type, schema.RecordSchema):
-                writer.write('\nself.{name} = SchemaClasses.{full_name}Class()'
-                             .format(name=f_name, full_name=default_type.fullname))
+                writer.write('\nself.{name} = {full_name}Class()'
+                             .format(name=f_name, full_name=clean_fullname(default_type.name)))
             else:
                 default_written = False
         something_written = something_written or default_written
@@ -149,17 +149,11 @@ def write_field(field, writer, use_logical_types):
     writer.write('''
 @property
 def {name}(self) -> {ret_type_name}:
-    """
-    :rtype: {ret_type_name}
-    """
     return self._inner_dict.get('{name}')
 
 
 @{name}.setter
 def {name}(self, value: {ret_type_name}):
-    #"""
-    #:param {ret_type_name} value:
-    #"""
     self._inner_dict['{name}'] = value
 
 '''.format(name=name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
@@ -278,6 +272,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
     writer.write('from avro.schema import SchemaFromJSONData as make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
     writer.write('from typing import List, Dict\n')
+    writer.write('from __future__ import annotations\n')
     writer.write('\n')
 
 
@@ -401,11 +396,7 @@ def write_enum(enum, writer):
     writer.write('''\nclass {name}Class(object):'''.format(name=type_name))
 
     with writer.indent():
-        writer.write('\n\n')
-        writer.write('"""\n')
-        writer.write(enum.doc or '')
         writer.write('\n')
-        writer.write('"""\n\n')
-
         for field in enum.symbols:
             writer.write('{name} = "{name}"\n'.format(name=field))
+        writer.write('\n')
