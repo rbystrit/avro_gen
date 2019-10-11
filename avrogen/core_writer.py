@@ -257,6 +257,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
     :param  writer:
     :return:
     """
+    writer.write('from __future__ import annotations\n')
     writer.write('import json\n')
     writer.write('import os.path\n')
     writer.write('import decimal\n')
@@ -272,7 +273,6 @@ def write_preamble(writer, use_logical_types, custom_imports):
     writer.write('from avro.schema import SchemaFromJSONData as make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
     writer.write('from typing import List, Dict\n')
-    writer.write('from __future__ import annotations\n')
     writer.write('\n')
 
 
@@ -314,7 +314,7 @@ def write_reader_impl(record_types, writer, use_logical_types):
         writer.write('\nSCHEMA_TYPES = {')
         with writer.indent():
             for t in record_types:
-                writer.write('\n"{t_class}": {t_class}Class,'.format(t_class=t.split('.')[1]))
+                writer.write('\n"{t_class}": {t_class}Class,'.format(t_class=t.split('.')[-1]))
 
         writer.write('\n}')
         writer.write('\n\n\ndef __init__(self, readers_schema=None, **kwargs):')

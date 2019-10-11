@@ -101,7 +101,7 @@ def write_populate_schemas(writer):
     :param writer:
     :return:
     """
-    writer.write('\n__SCHEMAS = dict((n.fullname.lstrip("."), n) for n in six.itervalues(__NAMES.names))')
+    writer.write('\n__SCHEMAS = dict((n.fullname.lstrip("."), n) for n in six.itervalues(__NAMES.names))\n')
 
 
 def write_namespace_modules(ns_dict, output_folder):
@@ -118,7 +118,7 @@ def write_namespace_modules(ns_dict, output_folder):
             if ns != '':
                 currency += '.' * len(ns.split('.'))
             for name in ns_dict[ns]:
-                f.write('from {0}schema_classes import {1}Class\n'.format(currency, name))
+                f.write(f'from {currency}schema_classes import {name}Class\n')
 
             f.write('\n\n')
 
@@ -136,8 +136,9 @@ def write_specific_reader(record_types, output_folder, use_logical_types):
     with open(os.path.join(output_folder, "__init__.py"), "a+") as f:
         writer = TabbedWriter(f)
         writer.write('from .schema_classes import SCHEMA as get_schema_type')
+        print(record_types)
         for t in record_types:
-            writer.write('\nfrom .schema_classes import {}Class'.format(t.split('.')[1]))
+            writer.write('\nfrom .schema_classes import {}Class'.format(t.split('.')[-1]))
         writer.write('\nfrom avro.io import DatumReader')
         if use_logical_types:
             writer.write('\nfrom avrogen import logical')
