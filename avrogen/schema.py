@@ -32,7 +32,7 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
         avro_json_converter = 'avrojson.AvroJsonConverter'
 
     if '(' not in avro_json_converter:
-        avro_json_converter += '(use_logical_types=%s, schema_types=__SCHEMA_TYPES)' % use_logical_types
+        avro_json_converter += f'(use_logical_types={use_logical_types}, schema_types=__SCHEMA_TYPES)'
 
     custom_imports = custom_imports or []
     names = schema.Names()
@@ -57,22 +57,23 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
         if namespace != current_namespace:
             current_namespace = namespace
         if isinstance(field_schema, schema.RecordSchema):
-            logger.debug('Writing schema: %s', clean_fullname(field_schema.fullname))
+            logger.debug(f'Writing schema: {clean_fullname(field_schema.fullname)}')
             write_schema_record(field_schema, writer, use_logical_types)
         elif isinstance(field_schema, schema.EnumSchema):
-            logger.debug('Writing enum: %s', field_schema.fullname)
+            logger.debug(f'Writing enum: {field_schema.fullname}', field_schema.fullname)
             write_enum(field_schema, writer)
     writer.set_tab(0)
-    writer.write('\n__SCHEMA_TYPES = {\n')
+    writer.write('\n__SCHEMA_TYPES = {')
     writer.tab()
 
     for name, field_schema in names:
-        writer.write("'%s': %sClass,\n" % (clean_fullname(field_schema.name), clean_fullname(field_schema.name)))
+        n = clean_fullname(field_schema.name)
+        writer.write(f"\n'{n}': {n}Class,")
 
     writer.untab()
-    writer.write('\n}\n')
+    writer.write('\n}\n\n')
 
-    writer.write('_json_converter = %s\n\n' % avro_json_converter)
+    writer.write(f'_json_converter = {avro_json_converter}\n\n')
 
     value = main_out.getvalue()
     main_out.close()
@@ -101,7 +102,7 @@ def write_populate_schemas(writer):
     :param writer:
     :return:
     """
-    writer.write('\n__SCHEMAS = dict((n.fullname.lstrip("."), n) for n in six.itervalues(__NAMES.names))')
+    writer.write('\n__SCHEMAS = dict((n.fullname.lstrip("."), n) for n in six.itervalues(__NAMES.names))\n')
 
 
 def write_namespace_modules(ns_dict, output_folder):
@@ -118,12 +119,12 @@ def write_namespace_modules(ns_dict, output_folder):
             if ns != '':
                 currency += '.' * len(ns.split('.'))
             for name in ns_dict[ns]:
-                f.write('from {0}schema_classes import {1}Class\n'.format(currency, name))
+                f.write(f'from {currency}schema_classes import {name}Class\n')
 
             f.write('\n\n')
 
             for name in ns_dict[ns]:
-                f.write("{name} = {name}Class\n".format(name=name))
+                f.write(f"{name} = {name}Class\n")
 
 
 def write_specific_reader(record_types, output_folder, use_logical_types):
@@ -137,7 +138,7 @@ def write_specific_reader(record_types, output_folder, use_logical_types):
         writer = TabbedWriter(f)
         writer.write('from .schema_classes import SCHEMA as get_schema_type')
         for t in record_types:
-            writer.write('\nfrom .schema_classes import {}Class'.format(t.split('.')[1]))
+            writer.write(f'\nfrom .schema_classes import {t.split(".")[-1]}Class')
         writer.write('\nfrom avro.io import DatumReader')
         if use_logical_types:
             writer.write('\nfrom avrogen import logical')
