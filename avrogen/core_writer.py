@@ -140,12 +140,12 @@ def write_field(field, writer, use_logical_types):
     writer.write('''
 @property
 def {name}(self) -> {ret_type_name}:
-    return self._inner_dict.get('{name}')
+    return self._inner_dict.get('{field.name}')
 
 
 @{name}.setter
 def {name}(self, value: {ret_type_name}):
-    self._inner_dict['{name}'] = value
+    self._inner_dict['{field.name}'] = value
 
 '''.format(name=name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
 
