@@ -42,7 +42,7 @@ def convert_default(full_name, idx, do_json=True):
         return (f'_json_converter.from_json_object({full_name}Class.RECORD_SCHEMA.fields[{idx}].default,'
                + f' writers_schema={full_name}Class.RECORD_SCHEMA.fields[{idx}].type)')
     else:
-        return f'self.RECORD_SCHEMA.fields[{idx}].default'
+        return f'SCHEMA.field_map["{idx}"].default'
 
 
 def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
@@ -68,7 +68,7 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
                     and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
                 lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
                 v = lt.initializer(convert_default(my_full_name,
-                                                   idx=i,
+                                                   idx=f_name,
                                                    do_json=isinstance(default_type,
                                                    schema.RecordSchema)))
                 writer.write(f'\nself.{f_name} = {v}')
@@ -103,7 +103,7 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
             elif isinstance(default_type, schema.ArraySchema):
                 writer.write(f'\nself.{f_name} = list()')
             elif isinstance(default_type, schema.FixedSchema):
-                writer.write(f'\nself.{f_name} = str()')
+                writer.write(f'\nself.{f_name}: str = str()')
             elif isinstance(default_type, schema.RecordSchema):
                 f = clean_fullname(default_type.name)
                 writer.write(f'\nself.{f_name} = {f}Class()')
