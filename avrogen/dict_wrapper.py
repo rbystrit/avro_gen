@@ -29,7 +29,7 @@ if six.PY3:
         def values(self):
             return self._inner_dict.values()
 
-        def fromkeys(S, v=None):
+        def fromkeys(self, v=None):
             raise NotImplementedError
 
         def clear(self):
@@ -132,7 +132,7 @@ else:
         def viewvalues(self):
             return self._inner_dict.viewvalues()
 
-        def fromkeys(S, v=None):
+        def fromkeys(self, v=None):
             raise NotImplementedError
 
         def clear(self):
@@ -145,7 +145,7 @@ else:
             return self._inner_dict.get(k, d)
 
         def has_key(self, k):
-            return self._inner_dict.has_key(key)
+            return self._inner_dict.has_key(k)
 
         def __contains__(self, item):
             return self._inner_dict.__contains__(item)

@@ -4,6 +4,7 @@ from avro import schema
 from . import namespace as ns_
 from . import logical
 import six
+import keyword
 
 if six.PY3:
     long = int
@@ -38,14 +39,10 @@ def clean_fullname(fullname):
 
 def convert_default(full_name, idx, do_json=True):
     if do_json:
-        return ('_json_converter.from_json_object(SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].default,'
-               + ' writers_schema=SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].type)').format(
-            full_name=full_name, idx=idx
-        )
+        return (f'_json_converter.from_json_object({full_name}Class.RECORD_SCHEMA.fields[{idx}].default,'
+               + f' writers_schema={full_name}Class.RECORD_SCHEMA.fields[{idx}].type)')
     else:
-        return ('SchemaClasses.{full_name}Class.RECORD_SCHEMA.fields[{idx}].default').format(
-            full_name=full_name, idx=idx
-        )
+        return f'SCHEMA.field_map["{idx}"].default'
 
 
 def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
@@ -61,57 +58,55 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
 
     something_written = False
     for field in record.fields:
+        f_name = field.name
+        if keyword.iskeyword(field.name):
+            f_name =  field.name + get_field_type_name(field.type, use_logical_types)
         default_type, nullable = find_type_of_default(field.type)
         default_written = False
         if field.has_default:
             if use_logical_types and default_type.props.get('logicalType') \
                     and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
                 lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
-
-                writer.write(
-                    '\nself.{name} = {value}'
-                        .format(name=field.name,
-                                value=lt.initializer(convert_default(my_full_name, idx=i,
-                                                                     do_json=isinstance(default_type,
-                                                                                        schema.RecordSchema)))))
+                v = lt.initializer(convert_default(my_full_name,
+                                                   idx=i,
+                                                   do_json=isinstance(default_type,
+                                                   schema.RecordSchema)))
+                writer.write(f'\nself.{f_name} = {v}')
                 default_written = True
             elif isinstance(default_type, schema.RecordSchema):
-                writer.write(
-                    '\nself.{name} = SchemaClasses.{full_name}Class({default})'
-                        .format(name=field.name, full_name=clean_fullname(default_type.fullname),
-                                default=convert_default(idx=i, full_name=my_full_name, do_json=True)))
+                d = convert_default(idx=i, full_name=my_full_name, do_json=True)
+                writer.write(f'\nself.{f_name} = {field.name}Class({d})')
                 default_written = True
             elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
-                writer.write('\nself.{name} = {default}'
-                             .format(name=field.name, default=convert_default(full_name=my_full_name, idx=i,
-                                                                              do_json=False)))
+                d = convert_default(full_name=my_full_name, idx=f_name, do_json=False)
+                writer.write(f'\nself.{f_name} = {d}')
                 default_written = True
 
         if not default_written:
             default_written = True
             if nullable:
-                writer.write('\nself.{name} = None'.format(name=field.name))
+                writer.write(f'\nself.{f_name} = None')
             elif use_logical_types and default_type.props.get('logicalType') \
                     and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
                 lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
-                writer.write('\nself.{name} = {default}'.format(name=field.name,
+                writer.write('\nself.{f_name} = {default}'.format(name=f_name,
                                                                 default=lt.initializer()))
             elif isinstance(default_type, schema.PrimitiveSchema) and not default_type.props.get('logicalType'):
-                writer.write('\nself.{name} = {default}'.format(name=field.name,
-                                                                default=get_primitive_field_initializer(default_type)))
+                d = get_primitive_field_initializer(default_type)
+                writer.write(f'\nself.{f_name} = {d}')
             elif isinstance(default_type, schema.EnumSchema):
-                writer.write('\nself.{name} = SchemaClasses.{full_name}Class.{sym}'
-                             .format(name=field.name, full_name=clean_fullname(default_type.fullname),
-                                     sym=default_type.symbols[0]))
+                f = clean_fullname(default_type.name)
+                s = default_type.symbols[0]
+                writer.write(f'\nself.{f_name} = {f}Class.{s}')
             elif isinstance(default_type, schema.MapSchema):
-                writer.write('\nself.{name} = dict()'.format(name=field.name))
+                writer.write(f'\nself.{f_name} = dict()')
             elif isinstance(default_type, schema.ArraySchema):
-                writer.write('\nself.{name} = list()'.format(name=field.name))
+                writer.write(f'\nself.{f_name} = list()')
             elif isinstance(default_type, schema.FixedSchema):
-                writer.write('\nself.{name} = str()'.format(name=field.name))
+                writer.write(f'\nself.{f_name}: str = str()')
             elif isinstance(default_type, schema.RecordSchema):
-                writer.write('\nself.{name} = SchemaClasses.{full_name}Class()'
-                             .format(name=field.name, full_name=default_type.fullname))
+                f = clean_fullname(default_type.name)
+                writer.write(f'\nself.{f_name} = {f}Class()')
             else:
                 default_written = False
         something_written = something_written or default_written
@@ -139,22 +134,20 @@ def write_field(field, writer, use_logical_types):
     :param writer:
     :return:
     """
+    name = field.name
+    if keyword.iskeyword(field.name):
+        name =  field.name + get_field_type_name(field.type, use_logical_types)
     writer.write('''
 @property
-def {name}(self):
-    """
-    :rtype: {ret_type_name}
-    """
-    return self._inner_dict.get('{name}')
+def {name}(self) -> {ret_type_name}:
+    return self._inner_dict.get('{raw_name}')
+
 
 @{name}.setter
-def {name}(self, value):
-    #"""
-    #:param {ret_type_name} value:
-    #"""
-    self._inner_dict['{name}'] = value
+def {name}(self, value: {ret_type_name}):
+    self._inner_dict['{raw_name}'] = value
 
-'''.format(name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
+'''.format(name=name, raw_name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
 
 
 def get_primitive_field_initializer(field_schema):
@@ -189,11 +182,11 @@ def get_field_type_name(field_schema, use_logical_types):
     elif isinstance(field_schema, schema.FixedSchema):
         return 'bytes'
     elif isinstance(field_schema, schema.NamedSchema):
-        return 'SchemaClasses.' + field_schema.fullname + 'Class'
+        return field_schema.name + 'Class'
     elif isinstance(field_schema, schema.ArraySchema):
-        return 'list[' + get_field_type_name(field_schema.items, use_logical_types) + ']'
+        return 'List[' + get_field_type_name(field_schema.items, use_logical_types) + ']'
     elif isinstance(field_schema, schema.MapSchema):
-        return 'dict[str, ' + get_field_type_name(field_schema.values, use_logical_types) + ']'
+        return 'Dict[str, ' + get_field_type_name(field_schema.values, use_logical_types) + ']'
     elif isinstance(field_schema, schema.UnionSchema):
         type_names = [get_field_type_name(x, use_logical_types) for x in field_schema.schemas if
                       get_field_type_name(x, use_logical_types)]
@@ -240,8 +233,8 @@ def start_namespace(current, target, writer):
     while i < min(len(current), len(target)) and current[i] == target[i]:
         i += 1
 
-    writer.write('\npass')
-    writer.set_tab(i + 1)
+    writer.write('\n\n')
+    writer.set_tab(0)
     writer.write('\n')
     for component in target[i:]:
         writer.write('class {name}(object):'.format(name=component))
@@ -255,6 +248,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
     :param  writer:
     :return:
     """
+    writer.write('from __future__ import annotations\n')
     writer.write('import json\n')
     writer.write('import os.path\n')
     writer.write('import decimal\n')
@@ -262,20 +256,14 @@ def write_preamble(writer, use_logical_types, custom_imports):
     writer.write('import six\n')
 
     for cs in (custom_imports or []):
-        writer.write('import %s\n' % cs)
+        writer.write(f'import {cs}\n')
     writer.write('from avrogen.dict_wrapper import DictWrapper\n')
     writer.write('from avrogen import avrojson\n')
     if use_logical_types:
         writer.write('from avrogen import logical\n')
+    writer.write('from avro.schema import SchemaFromJSONData as make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
-    writer.write('if six.PY3:')
-    writer.tab()
-    writer.write('    from avro.schema import SchemaFromJSONData as make_avsc_object\n')
-    writer.untab()
-    writer.write('\nelse:\n')
-    writer.tab()
-    writer.write('    from avro.schema import make_avsc_object\n')
-    writer.untab()
+    writer.write('from typing import List, Dict\n')
     writer.write('\n')
 
 
@@ -285,11 +273,11 @@ def write_read_file(writer):
     :param writer:
     :return:
     """
-    writer.write('\n\ndef __read_file(file_name):')
+    writer.write('\ndef __read_file(file_name):')
     with writer.indent():
         writer.write('\nwith open(file_name, "r") as f:')
         with writer.indent():
-            writer.write('\nreturn f.read()')
+            writer.write('\nreturn f.read()\n')
 
 
 def write_get_schema(writer):
@@ -298,10 +286,10 @@ def write_get_schema(writer):
     :param writer:
     :return:
     """
-    writer.write('\n__SCHEMAS = {}')
-    writer.write('\ndef get_schema_type(fullname):')
+    writer.write('\n__SCHEMAS = {}\n\n\n')
+    writer.write('def get_schema_type(fullname):')
     with writer.indent():
-        writer.write('\nreturn __SCHEMAS.get(fullname)')
+        writer.write('\nreturn __SCHEMAS.get(fullname)\n\n')
 
 
 def write_reader_impl(record_types, writer, use_logical_types):
@@ -316,20 +304,20 @@ def write_reader_impl(record_types, writer, use_logical_types):
     with writer.indent():
         writer.write('\nSCHEMA_TYPES = {')
         with writer.indent():
-            for type in record_types:
-                writer.write('\n"{type}": SchemaClasses.{type}Class,'.format(type=type))
+            for t in record_types:
+                writer.write('\n"{t_class}": {t_class}Class,'.format(t_class=t.split('.')[-1]))
 
         writer.write('\n}')
-        writer.write('\ndef __init__(self, readers_schema=None, **kwargs):')
+        writer.write('\n\n\ndef __init__(self, readers_schema=None, **kwargs):')
         with writer.indent():
             writer.write('\nwriters_schema = kwargs.pop("writers_schema", readers_schema)')
             writer.write('\nwriters_schema = kwargs.pop("writer_schema", writers_schema)')
             writer.write('\nsuper(SpecificDatumReader, self).__init__(writers_schema, readers_schema, **kwargs)')
 
-        writer.write('\ndef read_record(self, writers_schema, readers_schema, decoder):')
+        writer.write('\n\n\ndef read_record(self, writers_schema, readers_schema, decoder):')
         with writer.indent():
             writer.write(
-                '\n\nresult = super(SpecificDatumReader, self).read_record(writers_schema, readers_schema, decoder)')
+                '\nresult = super(SpecificDatumReader, self).read_record(writers_schema, readers_schema, decoder)')
             writer.write('\n\nif readers_schema.fullname in SpecificDatumReader.SCHEMA_TYPES:')
             with writer.indent():
                 writer.write('\nresult = SpecificDatumReader.SCHEMA_TYPES[readers_schema.fullname](result)')
@@ -371,23 +359,16 @@ def write_schema_record(record, writer, use_logical_types):
     :return:
     """
 
-    fullname = clean_fullname(record.fullname)
-    namespace, type_name = ns_.split_fullname(record.fullname)
+    _, type_name = ns_.split_fullname(record.fullname)
     writer.write('''\nclass {name}Class(DictWrapper):'''.format(name=type_name))
 
     with writer.indent():
-        writer.write("\n\n")
-        writer.write('"""\n')
-        writer.write(record.doc or '')
-        writer.write('\n')
-        writer.write('"""\n\n')
+        writer.write('\nRECORD_SCHEMA = get_schema_type("%s")' % record.name)
 
-        writer.write('\nRECORD_SCHEMA = get_schema_type("%s")' % fullname)
-
-        writer.write('\n\n\ndef __init__(self, inner_dict=None):')
+        writer.write('\n\ndef __init__(self, inner_dict=None):')
         with writer.indent():
             writer.write('\n')
-            writer.write('super(SchemaClasses.{name}Class, self).__init__(inner_dict)'.format(name=fullname))
+            writer.write('super({name}Class, self).__init__(inner_dict)'.format(name=record.name))
 
             writer.write('\nif inner_dict is None:')
             with writer.indent():
@@ -402,16 +383,11 @@ def write_enum(enum, writer):
     :param TabbedWriter writer:
     :return:
     """
-    fullname = clean_fullname(enum.fullname)
-    namespace, type_name = ns_.split_fullname(enum.fullname)
+    _, type_name = ns_.split_fullname(enum.fullname)
     writer.write('''\nclass {name}Class(object):'''.format(name=type_name))
 
     with writer.indent():
-        writer.write('\n\n')
-        writer.write('"""\n')
-        writer.write(enum.doc or '')
         writer.write('\n')
-        writer.write('"""\n\n')
-
         for field in enum.symbols:
             writer.write('{name} = "{name}"\n'.format(name=field))
+        writer.write('\n')
