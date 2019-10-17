@@ -68,7 +68,7 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
                     and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
                 lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
                 v = lt.initializer(convert_default(my_full_name,
-                                                   idx=f_name,
+                                                   idx=i,
                                                    do_json=isinstance(default_type,
                                                    schema.RecordSchema)))
                 writer.write(f'\nself.{f_name} = {v}')
@@ -78,7 +78,7 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
                 writer.write(f'\nself.{f_name} = {field.name}Class({d})')
                 default_written = True
             elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
-                d = convert_default(full_name=my_full_name, idx=i, do_json=False)
+                d = convert_default(full_name=my_full_name, idx=f_name, do_json=False)
                 writer.write(f'\nself.{f_name} = {d}')
                 default_written = True
 
