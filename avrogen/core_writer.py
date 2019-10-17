@@ -42,7 +42,7 @@ def convert_default(full_name, idx, do_json=True):
         return (f'_json_converter.from_json_object({full_name}Class.RECORD_SCHEMA.fields[{idx}].default,'
                + f' writers_schema={full_name}Class.RECORD_SCHEMA.fields[{idx}].type)')
     else:
-        return f'{full_name}Class.RECORD_SCHEMA.fields[{idx}].default'
+        return f'self.RECORD_SCHEMA.fields[{idx}].default'
 
 
 def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
