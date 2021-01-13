@@ -100,7 +100,7 @@ So in your code you will be able to say:
     
     with open('somefile', 'rb') as f:
         reader = datafile.DataFileReader(f,TweetReader(readers_schema=your_schema))
-        my_tweet1 = reader.next()
+        my_tweet1 = next(reader)
         reader.close()
         
        
