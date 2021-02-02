@@ -137,17 +137,22 @@ def write_field(field, writer, use_logical_types):
     name = field.name
     if keyword.iskeyword(field.name):
         name =  field.name + get_field_type_name(field.type, use_logical_types)
+    doc = field.doc
+    get_docstring = f'"""Getter: {doc}"""' if doc else "# No docs available."
+    set_docstring = f'"""Setter: {doc}"""' if doc else "# No docs available."
     writer.write('''
 @property
 def {name}(self) -> {ret_type_name}:
+    {get_docstring}
     return self._inner_dict.get('{raw_name}')
 
 
 @{name}.setter
 def {name}(self, value: {ret_type_name}):
+    {set_docstring}
     self._inner_dict['{raw_name}'] = value
 
-'''.format(name=name, raw_name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
+'''.format(name=name, get_docstring=get_docstring, set_docstring=set_docstring, raw_name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
 
 
 def get_primitive_field_initializer(field_schema):
@@ -363,7 +368,12 @@ def write_schema_record(record, writer, use_logical_types):
     writer.write('''\nclass {name}Class(DictWrapper):'''.format(name=type_name))
 
     with writer.indent():
-        writer.write('\nRECORD_SCHEMA = get_schema_type("%s")' % record.name)
+        writer.write('\n')
+        if record.doc:
+            writer.write(f'"""{record.doc}"""')
+        else:
+            writer.write('# No docs available.')
+        writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % record.name)
 
         writer.write('\n\ndef __init__(self, inner_dict=None):')
         with writer.indent():
@@ -388,6 +398,12 @@ def write_enum(enum, writer):
 
     with writer.indent():
         writer.write('\n')
+        if enum.doc:
+            writer.write(f'"""{enum.doc}"""')
+        else:
+            writer.write('# No docs available.')
+
+        writer.write('\n\n')
         for field in enum.symbols:
             writer.write('{name} = "{name}"\n'.format(name=field))
         writer.write('\n')
