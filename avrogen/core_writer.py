@@ -196,7 +196,7 @@ def get_field_type_name(field_schema, use_logical_types):
         type_names = [get_field_type_name(x, use_logical_types) for x in field_schema.schemas if
                       get_field_type_name(x, use_logical_types)]
         if len(type_names) > 1:
-            return ' | '.join(type_names)
+            return 'Union[' + ', '.join(type_names) + ']'
         elif len(type_names) == 1:
             return type_names[0]
         return ''
@@ -268,7 +268,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
         writer.write('from avrogen import logical\n')
     writer.write('from avro.schema import SchemaFromJSONData as make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
-    writer.write('from typing import List, Dict\n')
+    writer.write('from typing import List, Dict, Union\n')
     writer.write('\n')
 
 
