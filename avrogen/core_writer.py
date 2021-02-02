@@ -21,7 +21,7 @@ PRIMITIVE_TYPES = {
     'string'
 }
 __PRIMITIVE_TYPE_MAPPING = {
-    'null': '',
+    'null': None,
     'boolean': bool,
     'int': int,
     'long': long,
@@ -177,7 +177,7 @@ def get_field_type_name(field_schema, use_logical_types):
 
     if isinstance(field_schema, schema.PrimitiveSchema):
         if field_schema.fullname == 'null':
-            return ''
+            return 'None'
         return __PRIMITIVE_TYPE_MAPPING[field_schema.fullname].__name__
     elif isinstance(field_schema, schema.FixedSchema):
         return 'bytes'
