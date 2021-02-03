@@ -57,8 +57,8 @@ class AvroJsonConverter(object):
         return self._generic_from_json(json_obj, writers_schema, readers_schema)
 
     def to_json_object(self, data_obj, writers_schema=None):
-        if hasattr(type(data_obj), 'RECORD_SCHEMA'):
-            writers_schema = type(data_obj).RECORD_SCHEMA
+        if writers_schema is None:
+            writers_schema = self._get_record_schema_if_available(data_obj)
 
         if writers_schema is None:
             raise Exception("Could not determine writer's schema from the object type and schema was not passed")
@@ -73,6 +73,11 @@ class AvroJsonConverter(object):
         if isinstance(schema_, schema.NamedSchema):
             return schema_.fullname if six.PY2 else schema_.fullname.lstrip('.')
         return schema_.type
+
+    def _get_record_schema_if_available(self, data_obj):
+        if hasattr(type(data_obj), 'RECORD_SCHEMA'):
+            return type(data_obj).RECORD_SCHEMA
+        return None
 
     def _generic_to_json(self, data_obj, writers_schema):
         if self.use_logical_types and writers_schema.props.get('logicalType'):
@@ -130,7 +135,15 @@ class AvroJsonConverter(object):
 
     def _union_to_json(self, data_obj, writers_schema):
         index_of_schema = -1
+        data_schema = self._get_record_schema_if_available(data_obj)
         for i, candidate_schema in enumerate(writers_schema.schemas):
+            # Check for exact matches first.
+            if data_schema and candidate_schema.namespace == data_schema.namespace \
+                and candidate_schema.name == data_schema.name:
+                index_of_schema = i
+                break
+
+            # Fallback to schema guessing based on validation.
             if self.validate(candidate_schema, data_obj):
                 index_of_schema = i
                 if candidate_schema.type == 'boolean':
