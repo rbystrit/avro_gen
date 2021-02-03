@@ -229,7 +229,12 @@ class AvroJsonConverter(object):
         raise schema.AvroException('Datum union type not in schema: %s', value_type)
 
     def _instantiate_record(self, decoded_record, writers_schema, readers_schema):
+        # First try the fullname, which includes namespaces.
         readers_name = self._fullname(readers_schema)
+        if readers_name in self.schema_types:
+            return self.schema_types[readers_name](decoded_record)
+        # Fallback to the bare name, without namespace.
+        readers_name = readers_schema.name
         if readers_name in self.schema_types:
             return self.schema_types[readers_name](decoded_record)
         return decoded_record

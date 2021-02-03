@@ -66,6 +66,13 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
     writer.write('\n__SCHEMA_TYPES = {')
     writer.tab()
 
+    # Lookup table for fullname.
+    for name, field_schema in names:
+        n = clean_fullname(field_schema.name)
+        full = field_schema.fullname
+        writer.write(f"\n'{full}': {n}Class,")
+
+    # Lookup table for names without namespace.
     for name, field_schema in names:
         n = clean_fullname(field_schema.name)
         writer.write(f"\n'{n}': {n}Class,")
