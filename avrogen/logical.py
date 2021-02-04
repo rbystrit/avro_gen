@@ -22,7 +22,7 @@ SECONDS_IN_DAY = 24 * 60 * 60
 # so will need to switch to datetime arithmetic
 #EPOCH_TT = time.mktime((1970, 1, 1, 0, 0, 0, 0, 0, 0))
 
-EPOCH_TT = -datetime.datetime(1970, 1, 1, tzinfo=tzlocal.get_localzone()).utcoffset().total_seconds()
+EPOCH_TT = -datetime.datetime(1970, 1, 1).astimezone(tzlocal.get_localzone()).utcoffset().total_seconds()
 
 
 class LogicalTypeProcessor(object, six.with_metaclass(abc.ABCMeta)):

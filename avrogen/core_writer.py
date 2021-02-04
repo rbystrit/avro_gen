@@ -310,7 +310,9 @@ def write_reader_impl(record_types, writer, use_logical_types):
         writer.write('\nSCHEMA_TYPES = {')
         with writer.indent():
             for t in record_types:
-                writer.write('\n"{t_class}": {t_class}Class,'.format(t_class=t.split('.')[-1]))
+                t_class = t.split('.')[-1]
+                writer.write('\n"{t_class}": {t_class}Class,'.format(t_class=t_class))
+                writer.write('\n"{f_class}": {t_class}Class,'.format(t_class=t_class, f_class=t))
 
         writer.write('\n}')
         writer.write('\n\n\ndef __init__(self, readers_schema=None, **kwargs):')
@@ -373,7 +375,7 @@ def write_schema_record(record, writer, use_logical_types):
             writer.write(f'"""{record.doc}"""')
         else:
             writer.write('# No docs available.')
-        writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (record.namespace + '.' + record.name))
+        writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (((record.namespace + '.') if record.namespace else '') + record.name))
 
         writer.write('\n\ndef __init__(self, inner_dict=None):')
         with writer.indent():

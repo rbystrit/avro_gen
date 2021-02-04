@@ -34,7 +34,8 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
 
     custom_imports = custom_imports or []
 
-    if six.PY3:
+    if not hasattr(protocol, 'parse'):
+        # Older versions of avro used a capital P in Parse.
         proto = protocol.Parse(protocol_json)
     else:
         proto = protocol.parse(protocol_json)
