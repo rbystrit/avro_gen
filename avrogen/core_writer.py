@@ -375,7 +375,7 @@ def write_schema_record(record, writer, use_logical_types):
             writer.write(f'"""{record.doc}"""')
         else:
             writer.write('# No docs available.')
-        writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (((record.namespace + '.') if record.namespace else '') + record.name))
+        writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (record.namespace + '.' + record.name))
 
         writer.write('\n\ndef __init__(self, inner_dict=None):')
         with writer.indent():
