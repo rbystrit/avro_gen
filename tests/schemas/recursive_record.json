@@ -4,6 +4,6 @@
   "aliases": ["LinkedLongs"],
   "fields" : [
     { "name": "value", "type": "long" },
-    { "name": "next", "type": ["LongList", "null"] }
+    { "name": "next", "type": ["null", "LongList"] }
   ]
 }
