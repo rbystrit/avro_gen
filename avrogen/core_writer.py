@@ -42,7 +42,7 @@ def convert_default(full_name, idx, do_json=True):
         return (f'_json_converter.from_json_object({full_name}Class.RECORD_SCHEMA.fields[{idx}].default,'
                + f' writers_schema={full_name}Class.RECORD_SCHEMA.fields[{idx}].type)')
     else:
-        return f'{full_name}Class.RECORD_SCHEMA.field_map["{idx}"].default'
+        return f'SCHEMA.field_map["{idx}"].default'
 
 
 def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
@@ -68,13 +68,13 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
                     and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
                 lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
                 v = lt.initializer(convert_default(my_full_name,
-                                                   idx=f_name,
+                                                   idx=i,
                                                    do_json=isinstance(default_type,
                                                    schema.RecordSchema)))
                 writer.write(f'\nself.{f_name} = {v}')
                 default_written = True
             elif isinstance(default_type, schema.RecordSchema):
-                d = convert_default(idx=f_name, full_name=my_full_name, do_json=True)
+                d = convert_default(idx=i, full_name=my_full_name, do_json=True)
                 writer.write(f'\nself.{f_name} = {field.name}Class({d})')
                 default_written = True
             elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
@@ -89,7 +89,7 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
             elif use_logical_types and default_type.props.get('logicalType') \
                     and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
                 lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
-                writer.write('\nself.{f_name} = {default}'.format(f_name=f_name,
+                writer.write('\nself.{f_name} = {default}'.format(name=f_name,
                                                                 default=lt.initializer()))
             elif isinstance(default_type, schema.PrimitiveSchema) and not default_type.props.get('logicalType'):
                 d = get_primitive_field_initializer(default_type)
@@ -310,10 +310,7 @@ def write_reader_impl(record_types, writer, use_logical_types):
         writer.write('\nSCHEMA_TYPES = {')
         with writer.indent():
             for t in record_types:
-                t_class = t.split('.')[-1]
-                writer.write('\n"{t_class}": {t_class}Class,'.format(t_class=t_class))
-                writer.write('\n".{t_class}": {t_class}Class,'.format(t_class=t_class))
-                writer.write('\n"{f_class}": {t_class}Class,'.format(t_class=t_class, f_class=t))
+                writer.write('\n"{t_class}": {t_class}Class,'.format(t_class=t.split('.')[-1]))
 
         writer.write('\n}')
         writer.write('\n\n\ndef __init__(self, readers_schema=None, **kwargs):')
@@ -376,7 +373,7 @@ def write_schema_record(record, writer, use_logical_types):
             writer.write(f'"""{record.doc}"""')
         else:
             writer.write('# No docs available.')
-        writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (((record.namespace + '.') if record.namespace else '') + record.name))
+        writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (record.namespace + '.' + record.name))
 
         writer.write('\n\ndef __init__(self, inner_dict=None):')
         with writer.indent():
