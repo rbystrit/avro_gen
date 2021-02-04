@@ -10,12 +10,10 @@
         "fields": [
           {
             "name": "field1",
-            "type": "int"
+            "type": "int",
+            "default": 42
           }
         ]
-      },
-      "default": {
-        "field1": 42
       }
     },
     {
@@ -28,14 +26,12 @@
           "fields": [
             {
               "name": "field1",
-              "type": "int"
+              "type": "int",
+              "default": 42
             }
           ]
         }
-      ],
-      "default": {
-        "field1": 42
-      }
+      ]
     },
     {
       "name": "nullableRecordWithLogicalType",
@@ -49,15 +45,13 @@
               "name": "field1",
               "type": {
                 "type": "int",
-                "logicalType": "date"
+                "logicalType": "date",
+                "default": 42
               }
             }
           ]
         }
-      ],
-      "default": {
-        "field1": 42
-      }
+      ]
     },
     {
       "name": "nullableWithLogicalType",

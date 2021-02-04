@@ -35,7 +35,7 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
     custom_imports = custom_imports or []
 
     if six.PY3:
-        proto = protocol.Parse(protocol_json)
+        proto = protocol.parse(protocol_json)
     else:
         proto = protocol.parse(protocol_json)
 
