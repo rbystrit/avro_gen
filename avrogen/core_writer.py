@@ -74,6 +74,8 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
                 writer.write(f'\nself.{f_name} = {v}')
                 default_written = True
             elif isinstance(default_type, schema.RecordSchema):
+                if f_name == "auditHeader":
+                    breakpoint()
                 d = convert_default(idx=i, full_name=my_full_name, do_json=True)
                 writer.write(f'\nself.{f_name} = {field.name}Class({d})')
                 default_written = True
@@ -210,14 +212,17 @@ def find_type_of_default(field_type):
     """
 
     if isinstance(field_type, schema.UnionSchema):
-        non_null_types = [s for s in field_type.schemas if s.type != 'null']
-        if non_null_types:
-            type_, nullable = find_type_of_default(non_null_types[0])
-            nullable = nullable or any(
-                f for f in field_type.schemas if isinstance(f, schema.PrimitiveSchema) and f.fullname == 'null')
-        else:
-            type_, nullable = field_type.schemas[0], True
-        return type_, nullable
+        # For union types, the default is always the first item.
+        field, nullable = find_type_of_default(field_type.schemas[0])
+        return field, nullable
+        # non_null_types = [s for s in field_type.schemas if s.type != 'null']
+        # if non_null_types:
+        #     type_, nullable = find_type_of_default(non_null_types[0])
+        #     nullable = nullable or any(
+        #         f for f in field_type.schemas if isinstance(f, schema.PrimitiveSchema) and f.fullname == 'null')
+        # else:
+        #     type_, nullable = field_type.schemas[0], True
+        # return type_, nullable
     elif isinstance(field_type, schema.PrimitiveSchema):
         return field_type, field_type.fullname == 'null'
     else:
