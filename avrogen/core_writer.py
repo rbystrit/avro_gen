@@ -273,7 +273,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
         writer.write('from avrogen import logical\n')
     writer.write('from avro.schema import RecordSchema, SchemaFromJSONData as make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
-    writer.write('from typing import List, Dict, Union\n')
+    writer.write('from typing import List, Dict, Union, Optional, overload\n')
     writer.write('\n')
 
 
@@ -382,6 +382,16 @@ def write_schema_record(record, writer, use_logical_types):
         else:
             writer.write('# No docs available.')
         writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (record.namespace + '.' + record.name))
+
+        writer.write('\n\n@overload')
+        writer.write('\ndef __init__(self, **kwargs):')
+        with writer.indent():
+            writer.write('\n...')
+
+        writer.write('\n@overload')
+        writer.write('\ndef __init__(self, _inner_dict: Optional[dict]=None):')
+        with writer.indent():
+            writer.write('\n...')
 
         writer.write('\n\ndef __init__(self, _inner_dict=None, **kwargs):')
         with writer.indent():
