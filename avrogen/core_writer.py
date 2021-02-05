@@ -271,7 +271,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
     writer.write('from avrogen import avrojson\n')
     if use_logical_types:
         writer.write('from avrogen import logical\n')
-    writer.write('from avro.schema import SchemaFromJSONData as make_avsc_object\n')
+    writer.write('from avro.schema import RecordSchema, SchemaFromJSONData as make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
     writer.write('from typing import List, Dict, Union\n')
     writer.write('\n')
@@ -296,7 +296,7 @@ def write_get_schema(writer):
     :param writer:
     :return:
     """
-    writer.write('\n__SCHEMAS = {}\n\n\n')
+    writer.write('\n__SCHEMAS: Dict[str, RecordSchema] = {}\n\n\n')
     writer.write('def get_schema_type(fullname):')
     with writer.indent():
         writer.write('\nreturn __SCHEMAS.get(fullname)\n\n')
