@@ -128,6 +128,11 @@ def write_fields(record, writer, use_logical_types):
     for field in record.fields:  # type: schema.Field
         write_field(field, writer, use_logical_types)
 
+def get_field_name(field, use_logical_types):
+    name = field.name
+    if keyword.iskeyword(field.name):
+        name =  field.name + get_field_type_name(field.type, use_logical_types)
+    return name
 
 def write_field(field, writer, use_logical_types):
     """
@@ -136,9 +141,7 @@ def write_field(field, writer, use_logical_types):
     :param writer:
     :return:
     """
-    name = field.name
-    if keyword.iskeyword(field.name):
-        name =  field.name + get_field_type_name(field.type, use_logical_types)
+    name = get_field_name(field, use_logical_types)
     doc = field.doc
     get_docstring = f'"""Getter: {doc}"""' if doc else "# No docs available."
     set_docstring = f'"""Setter: {doc}"""' if doc else "# No docs available."
@@ -383,28 +386,38 @@ def write_schema_record(record, writer, use_logical_types):
             writer.write('# No docs available.')
         writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (record.namespace + '.' + record.name))
 
-        writer.write('\n\n@overload')
-        writer.write('\ndef __init__(self, **kwargs):')
-        with writer.indent():
-            writer.write('\n...')
+        write_record_init(record, writer, use_logical_types)
 
-        writer.write('\n@overload')
-        writer.write('\ndef __init__(self, _inner_dict: Optional[dict]=None):')
-        with writer.indent():
-            writer.write('\n...')
-
-        writer.write('\n\ndef __init__(self, _inner_dict=None, **kwargs):')
-        with writer.indent():
-            writer.write('\n')
-            writer.write('super({name}Class, self).__init__({{}})'.format(name=record.name))
-
-            write_defaults(record, writer, use_logical_types=use_logical_types)
-
-            writer.write('\nif _inner_dict is not None:')
-            with writer.indent():
-                writer.write('\nself._inner_dict.update(_inner_dict)')
-            writer.write('\nself._inner_dict.update(kwargs)')
         write_fields(record, writer, use_logical_types)
+
+
+def write_record_init(record, writer, use_logical_types):
+    writer.write('\n\n@overload')
+    writer.write('\ndef __init__(self,')
+    with writer.indent():
+        for field in record.fields:  # type: schema.Field
+            name = get_field_name(field, use_logical_types)
+            writer.write('\n{name}: {ret_type_name},'.format(name=name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
+    writer.write('\n):')
+    with writer.indent():
+        writer.write('\n...')
+
+    writer.write('\n@overload')
+    writer.write('\ndef __init__(self, _inner_dict: Optional[dict]=None):')
+    with writer.indent():
+        writer.write('\n...')
+
+    writer.write('\n\ndef __init__(self, _inner_dict=None, **kwargs):')
+    with writer.indent():
+        writer.write('\n')
+        writer.write('super({name}Class, self).__init__({{}})'.format(name=record.name))
+
+        write_defaults(record, writer, use_logical_types=use_logical_types)
+
+        writer.write('\nif _inner_dict is not None:')
+        with writer.indent():
+            writer.write('\nself._inner_dict.update(_inner_dict)')
+        writer.write('\nself._inner_dict.update(kwargs)')
 
 
 def write_enum(enum, writer):
