@@ -431,8 +431,10 @@ def write_record_init(record, writer, use_logical_types):
                 writer.write('\nsetattr(self, key, value)')
         writer.write('\nfor key, value in kwargs.items():')
         with writer.indent():
-            writer.write('\ngetattr(self, key)')
-            writer.write('\nsetattr(self, key, value)')
+            writer.write('\nif value is not None:')
+            with writer.indent():
+                writer.write('\ngetattr(self, key)')
+                writer.write('\nsetattr(self, key, value)')
 
 
 def write_enum(enum, writer):
