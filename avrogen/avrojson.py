@@ -18,6 +18,12 @@ class AvroJsonConverter(object):
         self.use_logical_types = use_logical_types
         self.logical_types = logical_types or {}
         self.schema_types = schema_types or {}
+        self.fastavro = False
+    
+    def with_tuple_union(self, enable=True):
+        ret = AvroJsonConverter(self.use_logical_types, self.logical_types, self.schema_types)
+        ret.fastavro = enable
+        return ret
 
     def validate(self, expected_schema, datum, skip_logical_types=False):
         if self.use_logical_types and expected_schema.props.get('logicalType') and not skip_logical_types \
@@ -153,6 +159,9 @@ class AvroJsonConverter(object):
         candidate_schema = writers_schema.schemas[index_of_schema]
         if candidate_schema.type == 'null':
             return None
+        if self.fastavro:
+            # Fastavro likes tuples instead of dicts for union types.
+            return (self._fullname(candidate_schema), self._generic_to_json(data_obj, candidate_schema))
         return {self._fullname(candidate_schema): self._generic_to_json(data_obj, candidate_schema)}
 
     def _generic_from_json(self, json_obj, writers_schema, readers_schema):
@@ -211,13 +220,20 @@ class AvroJsonConverter(object):
     def _union_from_json(self, json_obj, writers_schema, readers_schema):
         if json_obj is None:
             return None
-        if isinstance(json_obj, collections.Mapping):
+        value_type = None
+        value = None
+        if not self.fastavro and isinstance(json_obj, collections.Mapping):
             items = list(six.iteritems(json_obj))
             if not items:
                 return None
-
             value_type = items[0][0]
             value = items[0][1]
+        if self.fastavro and (isinstance(json_obj, list) or isinstance(json_obj, tuple)):
+            if len(json_obj) == 2:
+                value_type = json_obj[0]
+                value = json_obj[1]
+
+        if value_type is not None:
             for s in writers_schema.schemas:
                 name = self._fullname(s)
                 if name == value_type:
