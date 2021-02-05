@@ -383,14 +383,17 @@ def write_schema_record(record, writer, use_logical_types):
             writer.write('# No docs available.')
         writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (record.namespace + '.' + record.name))
 
-        writer.write('\n\ndef __init__(self, inner_dict=None):')
+        writer.write('\n\ndef __init__(self, _inner_dict=None, **kwargs):')
         with writer.indent():
             writer.write('\n')
-            writer.write('super({name}Class, self).__init__(inner_dict)'.format(name=record.name))
+            writer.write('super({name}Class, self).__init__({{}})'.format(name=record.name))
 
-            writer.write('\nif inner_dict is None:')
+            write_defaults(record, writer, use_logical_types=use_logical_types)
+
+            writer.write('\nif _inner_dict is not None:')
             with writer.indent():
-                write_defaults(record, writer, use_logical_types=use_logical_types)
+                writer.write('\nself._inner_dict.update(_inner_dict)')
+            writer.write('\nself._inner_dict.update(kwargs)')
         write_fields(record, writer, use_logical_types)
 
 
