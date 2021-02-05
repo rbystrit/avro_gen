@@ -404,7 +404,7 @@ def write_record_init(record, writer, use_logical_types):
             # make a difference because this is an overload method and not
             # a real one. However, we need to set them to something so that
             # they all become optional arguments.
-            writer.write(f'\n{name}: {ret_type_name}=None,')
+            writer.write(f'\n{name}: Optional[{ret_type_name}]=None,')
             # writer.write(f'\n{name}: {ret_type_name} = {default},')
     writer.write('\n):')
     with writer.indent():
@@ -425,8 +425,14 @@ def write_record_init(record, writer, use_logical_types):
 
         writer.write('\nif _inner_dict is not None:')
         with writer.indent():
-            writer.write('\nself._inner_dict.update(_inner_dict)')
-        writer.write('\nself._inner_dict.update(kwargs)')
+            writer.write('\nfor key, value in _inner_dict.items():')
+            with writer.indent():
+                writer.write('\ngetattr(self, key)')
+                writer.write('\nsetattr(self, key, value)')
+        writer.write('\nfor key, value in kwargs.items():')
+        with writer.indent():
+            writer.write('\ngetattr(self, key)')
+            writer.write('\nsetattr(self, key, value)')
 
 
 def write_enum(enum, writer):
