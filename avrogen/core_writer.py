@@ -45,6 +45,55 @@ def convert_default(full_name, idx, do_json=True):
         return f'self.RECORD_SCHEMA.field_map["{idx}"].default'
 
 
+def get_default(field, use_logical_types, my_full_name=None, f_name=None):
+    default_written = False
+    f_name = f_name if f_name is not None else field.name
+    if keyword.iskeyword(field.name):
+        f_name =  field.name + get_field_type_name(field.type, use_logical_types)
+
+    default_type, nullable = find_type_of_default(field.type)
+    if field.has_default:
+        if use_logical_types and default_type.props.get('logicalType') \
+                and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
+            lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
+            v = lt.initializer(convert_default(my_full_name,
+                                                idx=i,
+                                                do_json=isinstance(default_type,
+                                                schema.RecordSchema)))
+            return v
+        elif isinstance(default_type, schema.RecordSchema):
+            d = convert_default(idx=i, full_name=my_full_name, do_json=True)
+            return f'{field.name}Class({d})'
+        elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
+            d = convert_default(full_name=my_full_name, idx=f_name, do_json=False)
+            return d
+
+    if not default_written:
+        default_written = True
+        if nullable:
+            return 'None'
+        elif use_logical_types and default_type.props.get('logicalType') \
+                and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
+            lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
+            return f'{default}'.format(default=lt.initializer())
+        elif isinstance(default_type, schema.PrimitiveSchema) and not default_type.props.get('logicalType'):
+            d = get_primitive_field_initializer(default_type)
+            return d
+        elif isinstance(default_type, schema.EnumSchema):
+            f = clean_fullname(default_type.name)
+            s = default_type.symbols[0]
+            return f'{f}Class.{s}'
+        elif isinstance(default_type, schema.MapSchema):
+            return 'dict()'
+        elif isinstance(default_type, schema.ArraySchema):
+            return 'list()'
+        elif isinstance(default_type, schema.FixedSchema):
+            return 'str()'
+        elif isinstance(default_type, schema.RecordSchema):
+            f = clean_fullname(default_type.name)
+            return f'{f}Class()'
+    raise AttributeError('cannot get default for field')
+
 def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
     """
     Write concrete record class's constructor part which initializes fields with default values
@@ -61,57 +110,9 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
         f_name = field.name
         if keyword.iskeyword(field.name):
             f_name =  field.name + get_field_type_name(field.type, use_logical_types)
-        default_type, nullable = find_type_of_default(field.type)
-        default_written = False
-        if field.has_default:
-            if use_logical_types and default_type.props.get('logicalType') \
-                    and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
-                lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
-                v = lt.initializer(convert_default(my_full_name,
-                                                   idx=i,
-                                                   do_json=isinstance(default_type,
-                                                   schema.RecordSchema)))
-                writer.write(f'\nself.{f_name} = {v}')
-                default_written = True
-            elif isinstance(default_type, schema.RecordSchema):
-                if f_name == "auditHeader":
-                    breakpoint()
-                d = convert_default(idx=i, full_name=my_full_name, do_json=True)
-                writer.write(f'\nself.{f_name} = {field.name}Class({d})')
-                default_written = True
-            elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
-                d = convert_default(full_name=my_full_name, idx=f_name, do_json=False)
-                writer.write(f'\nself.{f_name} = {d}')
-                default_written = True
-
-        if not default_written:
-            default_written = True
-            if nullable:
-                writer.write(f'\nself.{f_name} = None')
-            elif use_logical_types and default_type.props.get('logicalType') \
-                    and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
-                lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
-                writer.write('\nself.{f_name} = {default}'.format(name=f_name,
-                                                                default=lt.initializer()))
-            elif isinstance(default_type, schema.PrimitiveSchema) and not default_type.props.get('logicalType'):
-                d = get_primitive_field_initializer(default_type)
-                writer.write(f'\nself.{f_name} = {d}')
-            elif isinstance(default_type, schema.EnumSchema):
-                f = clean_fullname(default_type.name)
-                s = default_type.symbols[0]
-                writer.write(f'\nself.{f_name} = {f}Class.{s}')
-            elif isinstance(default_type, schema.MapSchema):
-                writer.write(f'\nself.{f_name} = dict()')
-            elif isinstance(default_type, schema.ArraySchema):
-                writer.write(f'\nself.{f_name} = list()')
-            elif isinstance(default_type, schema.FixedSchema):
-                writer.write(f'\nself.{f_name}: str = str()')
-            elif isinstance(default_type, schema.RecordSchema):
-                f = clean_fullname(default_type.name)
-                writer.write(f'\nself.{f_name} = {f}Class()')
-            else:
-                default_written = False
-        something_written = something_written or default_written
+        default = get_default(field, use_logical_types, my_full_name=my_full_name, f_name=f_name)
+        writer.write(f'\nself.{f_name} = {default}')
+        something_written = True
         i += 1
     if not something_written:
         writer.write('\npass')
@@ -397,7 +398,13 @@ def write_record_init(record, writer, use_logical_types):
     with writer.indent():
         for field in record.fields:  # type: schema.Field
             name = get_field_name(field, use_logical_types)
-            writer.write('\n{name}: {ret_type_name},'.format(name=name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
+            # default = get_default(field, use_logical_types)
+            ret_type_name = get_field_type_name(field.type, use_logical_types)
+            # We can actually skip setting defaults here. It won't actually
+            # make a difference because this is an overload method and not
+            # a real one.
+            writer.write(f'\n{name}: {ret_type_name},')
+            # writer.write(f'\n{name}: {ret_type_name} = {default},')
     writer.write('\n):')
     with writer.indent():
         writer.write('\n...')
