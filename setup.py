@@ -55,7 +55,7 @@ setup(
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     package_data={
-        'avrogen': ['../README.md', 'py.typed'],
+        'avrogen': ['py.typed'],
     },
     install_requires=["avro >= 1.8.0 ; python_version<'3.0'",
                       "avro_python3 >= 1.8.0 ; python_version>'3.0'",
