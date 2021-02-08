@@ -150,7 +150,7 @@ def write_field(field, writer, use_logical_types):
 @property
 def {name}(self) -> {ret_type_name}:
     {get_docstring}
-    return self._inner_dict.get('{raw_name}')
+    return self._inner_dict.get('{raw_name}')  # type: ignore
 
 
 @{name}.setter
