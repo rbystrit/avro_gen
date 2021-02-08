@@ -54,7 +54,11 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    package_data={'': ['README.md']},
+    package_data={
+        '': ['README.md'],
+        'dict_wrapper': ['py.typed'],
+        'avrojson': ['py.typed'],
+    },
     install_requires=["avro >= 1.8.0 ; python_version<'3.0'",
                       "avro_python3 >= 1.8.0 ; python_version>'3.0'",
                       'six', 'frozendict', 'tzlocal', 'pytz'],
