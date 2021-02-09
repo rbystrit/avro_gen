@@ -21,6 +21,8 @@ if six.PY3:
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 # logging.getLogger('avrogen.schema').setLevel(logging.DEBUG)
 
+unittest.TestLoader.sortTestMethodsUsing = None
+
 class GeneratorTestCase(unittest.TestCase):
     TEST_NUMBER = 1
 
