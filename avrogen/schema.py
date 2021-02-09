@@ -95,12 +95,13 @@ def write_schema_preamble(writer):
     :return:
     """
     write_read_file(writer)
-    writer.write('\n\ndef __get_names_and_schema(file_name):')
+    writer.write('\n\ndef __get_names_and_schema(json_str):')
     with writer.indent():
         writer.write('\nnames = avro_schema.Names()')
-        writer.write('\nschema = make_avsc_object(json.loads(__read_file(file_name)), names)')
+        writer.write('\nschema = make_avsc_object(json.loads(json_str), names)')
         writer.write('\nreturn names, schema')
-    writer.write('\n\n\n__NAMES, SCHEMA = __get_names_and_schema(os.path.join(os.path.dirname(__file__), "schema.avsc"))')
+    writer.write('\n\n\nSCHEMA_JSON_STR = __read_file(os.path.join(os.path.dirname(__file__), "schema.avsc"))')
+    writer.write('\n\n\n__NAMES, SCHEMA = __get_names_and_schema(SCHEMA_JSON_STR)')
 
 
 def write_populate_schemas(writer):
