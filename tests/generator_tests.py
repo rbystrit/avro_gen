@@ -14,9 +14,9 @@ import sys
 import datetime
 import six
 
-if six.PY3:
+if not hasattr(schema, 'parse'):
+    # Older versions of avro used a capital P in Parse.
     schema.parse = schema.Parse
-    schema.make_avsc_object = schema.SchemaFromJSONData
 
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 # logging.getLogger('avrogen.schema').setLevel(logging.DEBUG)
@@ -60,12 +60,20 @@ class GeneratorTestCase(unittest.TestCase):
     def read_schema(self, name):
         with open(os.path.join(GeneratorTestCase.SCHEMA_DIR, name), "r") as f:
             return f.read()
+    
+    def load_gen(self, test_name):
+        try:
+            importlib.invalidate_caches()
+            root_module = importlib.import_module(test_name)
+            schema_classes = importlib.import_module('.schema_classes', test_name)
+            return root_module, schema_classes
+        except ModuleNotFoundError as e:
+            breakpoint()
 
     def test_simple_record(self):
         schema_json = self.read_schema('simple_record.json')
         avrogen.schema.write_schema_files(schema_json, self.output_dir)
-        root_module = importlib.import_module(self.test_name)
-        schema_classes = importlib.import_module('.schema_classes', self.test_name)
+        root_module, schema_classes = self.load_gen(self.test_name)
 
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
         self.assertTrue(hasattr(root_module, 'LongList'))
@@ -77,8 +85,7 @@ class GeneratorTestCase(unittest.TestCase):
     def test_record_with_array(self):
         schema_json = self.read_schema('record_with_array.json')
         avrogen.schema.write_schema_files(schema_json, self.output_dir)
-        root_module = importlib.import_module(self.test_name)
-        schema_classes = importlib.import_module('.schema_classes', self.test_name)
+        root_module, schema_classes = self.load_gen(self.test_name)
 
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
         self.assertTrue(hasattr(root_module, 'LongList'))
@@ -91,8 +98,7 @@ class GeneratorTestCase(unittest.TestCase):
     def test_recursive_record(self):
         schema_json = self.read_schema('recursive_record.json')
         avrogen.schema.write_schema_files(schema_json, self.output_dir)
-        root_module = importlib.import_module(self.test_name)
-        schema_classes = importlib.import_module('.schema_classes', self.test_name)
+        root_module, schema_classes = self.load_gen(self.test_name)
 
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
         self.assertTrue(hasattr(root_module, 'LongList'))
@@ -113,16 +119,14 @@ class GeneratorTestCase(unittest.TestCase):
     def test_enum(self):
         schema_json = self.read_schema('enum.json')
         avrogen.schema.write_schema_files(schema_json, self.output_dir)
-        root_module = importlib.import_module(self.test_name)
-        importlib.import_module('.schema_classes', self.test_name)
+        root_module, _ = self.load_gen(self.test_name)
 
         self.assertTrue(hasattr(root_module, 'myenum'))
 
     def test_tweet(self):
         schema_json = self.read_schema('tweet.json')
         avrogen.schema.write_schema_files(schema_json, self.output_dir)
-        root_module = importlib.import_module(self.test_name)
-        importlib.import_module('.schema_classes', self.test_name)
+        root_module, _ = self.load_gen(self.test_name)
         twitter_ns = importlib.import_module('.com.bifflabs.grok.model.twitter.avro', self.test_name)
         common_ns = importlib.import_module('.com.bifflabs.grok.model.common.avro', self.test_name)
 
@@ -322,8 +326,7 @@ class GeneratorTestCase(unittest.TestCase):
         schema_json = self.read_schema('sample_null_response.avpr')
         avrogen.protocol.write_protocol_files(schema_json, self.output_dir)
 
-        root_module = importlib.import_module(self.test_name)
-        importlib.import_module('.schema_classes', self.test_name)
+        root_module, schema_classes = self.load_gen(self.test_name)
         sample_ns = importlib.import_module('.org.sample', self.test_name)
         self.assertFalse(hasattr(sample_ns, 'Account'))
         self.assertTrue(hasattr(sample_ns, 'addAccountRequest'))
@@ -448,8 +451,7 @@ class GeneratorTestCase(unittest.TestCase):
     def test_defaults(self):
         schema_json = self.read_schema('record_with_default_nested.json')
         avrogen.schema.write_schema_files(schema_json, self.output_dir, use_logical_types=True)
-        root_module = importlib.import_module(self.test_name)
-        schema_classes = importlib.import_module('.schema_classes', self.test_name)
+        root_module, schema_classes = self.load_gen(self.test_name)
 
         self.assertTrue(hasattr(root_module, 'sample_recordClass'))
         record = root_module.sample_recordClass()
@@ -463,8 +465,7 @@ class GeneratorTestCase(unittest.TestCase):
     def primitive_type_tester(self, schema_name):
         schema_json = self.read_schema(schema_name)
         avrogen.schema.write_schema_files(schema_json, self.output_dir)
-        importlib.import_module(self.test_name)
-        schema_classes = importlib.import_module('.schema_classes', self.test_name)
+        root_module, schema_classes = self.load_gen(self.test_name)
 
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
 
