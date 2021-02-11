@@ -193,7 +193,7 @@ def get_field_type_name(field_schema, use_logical_types):
     elif isinstance(field_schema, schema.FixedSchema):
         return 'bytes'
     elif isinstance(field_schema, schema.NamedSchema):
-        return field_schema.name + 'Class'
+        return f'"{field_schema.name}Class"'
     elif isinstance(field_schema, schema.ArraySchema):
         return 'List[' + get_field_type_name(field_schema.items, use_logical_types) + ']'
     elif isinstance(field_schema, schema.MapSchema):
@@ -262,7 +262,6 @@ def write_preamble(writer, use_logical_types, custom_imports):
     :param  writer:
     :return:
     """
-    writer.write('from __future__ import annotations\n')
     writer.write('import json\n')
     writer.write('import os.path\n')
     writer.write('import decimal\n')
