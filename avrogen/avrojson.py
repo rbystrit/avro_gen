@@ -19,6 +19,10 @@ class AvroJsonConverter(object):
         self.logical_types = logical_types or {}
         self.schema_types = schema_types or {}
         self.fastavro = False
+        
+        # Register self with all the schema objects.
+        for klass in self.schema_types.values():
+            klass._json_converter = self
     
     def with_tuple_union(self, enable=True) -> 'AvroJsonConverter':
         ret = AvroJsonConverter(self.use_logical_types, self.logical_types, self.schema_types)

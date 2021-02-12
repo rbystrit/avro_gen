@@ -1,6 +1,10 @@
 from typing import NoReturn
 import six
 
+from avro import io
+
+from .avrojson import AvroJsonConverter
+
 
 class DictWrapper(dict):
     __slots__ = ['_inner_dict']
@@ -8,6 +12,20 @@ class DictWrapper(dict):
     def __init__(self, inner_dict=None):
         super(DictWrapper, self).__init__()
         self._inner_dict = {} if inner_dict is None else inner_dict  # type: dict
+    
+    @classmethod
+    def _get_json_converter(cls) -> AvroJsonConverter:
+        # This attribute will be set by the AvroJsonConverter's init method.
+        return cls._json_converter
+
+    @classmethod
+    def from_obj(cls, obj, tuples=False):
+        conv = cls._get_json_converter().with_tuple_union(tuples)
+        return conv.from_json_object(obj, cls.RECORD_SCHEMA)
+
+    def to_obj(self, tuples=False):
+        conv = self._get_json_converter().with_tuple_union(tuples)
+        return conv.to_json_object(self, self.RECORD_SCHEMA)
 
     def __getitem__(self, item):
         return self._inner_dict.__getitem__(item)
