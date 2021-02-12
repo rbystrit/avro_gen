@@ -1,9 +1,9 @@
-from typing import NoReturn
+from typing import NoReturn, TypeVar, Type
 import six
 
-from avro import io
-
 from .avrojson import AvroJsonConverter
+
+TC = TypeVar('TC', bound='DictWrapper')
 
 
 class DictWrapper(dict):
@@ -19,11 +19,11 @@ class DictWrapper(dict):
         return cls._json_converter
 
     @classmethod
-    def from_obj(cls, obj, tuples=False):
+    def from_obj(cls: Type[TC], obj, tuples=False) -> TC:
         conv = cls._get_json_converter().with_tuple_union(tuples)
         return conv.from_json_object(obj, cls.RECORD_SCHEMA)
 
-    def to_obj(self, tuples=False):
+    def to_obj(self, tuples=False) -> dict:
         conv = self._get_json_converter().with_tuple_union(tuples)
         return conv.to_json_object(self, self.RECORD_SCHEMA)
 

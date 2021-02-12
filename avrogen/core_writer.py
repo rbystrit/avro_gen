@@ -439,14 +439,15 @@ def write_record_init(record, writer, use_logical_types):
 
 
 def write_serialization_stubs(record, writer, use_logical_types):
-    writer.write(f'\n\n@classmethod')
-    writer.write(f'\ndef from_obj(cls, obj: dict, tuples=False) -> "{record.name}Class":')
-    with writer.indent():
-        writer.write('\n...')
+    # writer.write(f'\n\n@classmethod')
+    # writer.write(f'\ndef from_obj(cls, obj: dict, tuples=False) -> "{record.name}Class":')
+    # with writer.indent():
+    #     writer.write('\n...')
 
-    writer.write(f'\n\ndef to_obj(self, tuples=False) -> dict:')
-    with writer.indent():
-        writer.write('\n...')
+    # writer.write(f'\n\ndef to_obj(self, tuples=False) -> dict:')
+    # with writer.indent():
+    #     writer.write('\n...')
+    pass
 
 
 def write_enum(enum, writer):
