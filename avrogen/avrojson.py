@@ -18,6 +18,16 @@ class AvroJsonConverter(object):
         self.use_logical_types = use_logical_types
         self.logical_types = logical_types or {}
         self.schema_types = schema_types or {}
+        self.fastavro = False
+        
+        # Register self with all the schema objects.
+        for klass in self.schema_types.values():
+            klass._json_converter = self
+    
+    def with_tuple_union(self, enable=True) -> 'AvroJsonConverter':
+        ret = AvroJsonConverter(self.use_logical_types, self.logical_types, self.schema_types)
+        ret.fastavro = enable
+        return ret
 
     def validate(self, expected_schema, datum, skip_logical_types=False):
         if self.use_logical_types and expected_schema.props.get('logicalType') and not skip_logical_types \
@@ -57,8 +67,8 @@ class AvroJsonConverter(object):
         return self._generic_from_json(json_obj, writers_schema, readers_schema)
 
     def to_json_object(self, data_obj, writers_schema=None):
-        if hasattr(type(data_obj), 'RECORD_SCHEMA'):
-            writers_schema = type(data_obj).RECORD_SCHEMA
+        if writers_schema is None:
+            writers_schema = self._get_record_schema_if_available(data_obj)
 
         if writers_schema is None:
             raise Exception("Could not determine writer's schema from the object type and schema was not passed")
@@ -73,6 +83,11 @@ class AvroJsonConverter(object):
         if isinstance(schema_, schema.NamedSchema):
             return schema_.fullname if six.PY2 else schema_.fullname.lstrip('.')
         return schema_.type
+
+    def _get_record_schema_if_available(self, data_obj):
+        if hasattr(type(data_obj), 'RECORD_SCHEMA'):
+            return type(data_obj).RECORD_SCHEMA
+        return None
 
     def _generic_to_json(self, data_obj, writers_schema):
         if self.use_logical_types and writers_schema.props.get('logicalType'):
@@ -130,7 +145,15 @@ class AvroJsonConverter(object):
 
     def _union_to_json(self, data_obj, writers_schema):
         index_of_schema = -1
+        data_schema = self._get_record_schema_if_available(data_obj)
         for i, candidate_schema in enumerate(writers_schema.schemas):
+            # Check for exact matches first.
+            if data_schema and candidate_schema.namespace == data_schema.namespace \
+                and candidate_schema.name == data_schema.name:
+                index_of_schema = i
+                break
+
+            # Fallback to schema guessing based on validation.
             if self.validate(candidate_schema, data_obj):
                 index_of_schema = i
                 if candidate_schema.type == 'boolean':
@@ -140,6 +163,9 @@ class AvroJsonConverter(object):
         candidate_schema = writers_schema.schemas[index_of_schema]
         if candidate_schema.type == 'null':
             return None
+        if self.fastavro:
+            # Fastavro likes tuples instead of dicts for union types.
+            return (self._fullname(candidate_schema), self._generic_to_json(data_obj, candidate_schema))
         return {self._fullname(candidate_schema): self._generic_to_json(data_obj, candidate_schema)}
 
     def _generic_from_json(self, json_obj, writers_schema, readers_schema):
@@ -198,13 +224,20 @@ class AvroJsonConverter(object):
     def _union_from_json(self, json_obj, writers_schema, readers_schema):
         if json_obj is None:
             return None
-        if isinstance(json_obj, collections.Mapping):
+        value_type = None
+        value = None
+        if not self.fastavro and isinstance(json_obj, collections.Mapping):
             items = list(six.iteritems(json_obj))
             if not items:
                 return None
-
             value_type = items[0][0]
             value = items[0][1]
+        if self.fastavro and (isinstance(json_obj, list) or isinstance(json_obj, tuple)):
+            if len(json_obj) == 2:
+                value_type = json_obj[0]
+                value = json_obj[1]
+
+        if value_type is not None:
             for s in writers_schema.schemas:
                 name = self._fullname(s)
                 if name == value_type:
@@ -216,7 +249,12 @@ class AvroJsonConverter(object):
         raise schema.AvroException('Datum union type not in schema: %s', value_type)
 
     def _instantiate_record(self, decoded_record, writers_schema, readers_schema):
+        # First try the fullname, which includes namespaces.
         readers_name = self._fullname(readers_schema)
+        if readers_name in self.schema_types:
+            return self.schema_types[readers_name](decoded_record)
+        # Fallback to the bare name, without namespace.
+        readers_name = readers_schema.name
         if readers_name in self.schema_types:
             return self.schema_types[readers_name](decoded_record)
         return decoded_record

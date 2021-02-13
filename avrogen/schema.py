@@ -66,6 +66,13 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
     writer.write('\n__SCHEMA_TYPES = {')
     writer.tab()
 
+    # Lookup table for fullname.
+    for name, field_schema in names:
+        n = clean_fullname(field_schema.name)
+        full = field_schema.fullname
+        writer.write(f"\n'{full}': {n}Class,")
+
+    # Lookup table for names without namespace.
     for name, field_schema in names:
         n = clean_fullname(field_schema.name)
         writer.write(f"\n'{n}': {n}Class,")
@@ -88,12 +95,13 @@ def write_schema_preamble(writer):
     :return:
     """
     write_read_file(writer)
-    writer.write('\n\ndef __get_names_and_schema(file_name):')
+    writer.write('\n\ndef __get_names_and_schema(json_str):')
     with writer.indent():
         writer.write('\nnames = avro_schema.Names()')
-        writer.write('\nschema = make_avsc_object(json.loads(__read_file(file_name)), names)')
+        writer.write('\nschema = make_avsc_object(json.loads(json_str), names)')
         writer.write('\nreturn names, schema')
-    writer.write('\n\n\n__NAMES, SCHEMA = __get_names_and_schema(os.path.join(os.path.dirname(__file__), "schema.avsc"))')
+    writer.write('\n\n\nSCHEMA_JSON_STR = __read_file(os.path.join(os.path.dirname(__file__), "schema.avsc"))')
+    writer.write('\n\n\n__NAMES, SCHEMA = __get_names_and_schema(SCHEMA_JSON_STR)')
 
 
 def write_populate_schemas(writer):
@@ -137,6 +145,7 @@ def write_specific_reader(record_types, output_folder, use_logical_types):
     with open(os.path.join(output_folder, "__init__.py"), "a+") as f:
         writer = TabbedWriter(f)
         writer.write('from .schema_classes import SCHEMA as get_schema_type')
+        writer.write('\nfrom .schema_classes import _json_converter as json_converter')
         for t in record_types:
             writer.write(f'\nfrom .schema_classes import {t.split(".")[-1]}Class')
         writer.write('\nfrom avro.io import DatumReader')
