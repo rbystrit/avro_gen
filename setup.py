@@ -2,7 +2,7 @@
 A setuptools-based setup module.
 
 See:
-https://github.com/rbystrit/avro_gen
+https://github.com/hsheth2/avro_gen
 """
 
 from setuptools import setup, find_packages
@@ -19,14 +19,15 @@ else:
     long_description = ''
 
 setup(
-    name='avro-gen',
-    version='0.3.0',
+    name='avro-gen3',
+    version='0.3.2',
 
     description='Avro record class and specific record reader generator',
     long_description=long_description,
-    url='https://github.com/rbystrit/avro_gen',
-    author='Roman Bystritskiy',
-    author_email='rbystrit@gmail.com',
+    long_description_content_type='text/markdown',
+    url='https://github.com/hsheth2/avro_gen',
+    author='Harshal Sheth',
+    author_email='hsheth2@gmail.com',
     license='License :: OSI Approved :: Apache Software License',
 
     classifiers=[
@@ -44,9 +45,10 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
 
     keywords='avro class generator',

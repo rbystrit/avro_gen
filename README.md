@@ -17,6 +17,14 @@ on top of the DatumReader and all the specific record classes dict wrappers whic
 properties with proper type hints for each field in the schema. For this exact reason the 
 generator does not provide an overloaded DictWriter; each specific record appears just to be a 
 regular dictionary.
+
+This is a fork of [https://github.com/rbystrit/avro_gen](https://github.com/rbystrit/avro_gen).
+It adds better Python 3 support, including types, better namespace handling, support for
+documentation generation, and JSON (de-)serialization.
+
+```sh
+pip install avro-gen3
+```
  
 ##### Usage:
     schema_json = "....."
