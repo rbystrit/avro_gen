@@ -192,6 +192,11 @@ def get_field_type_name(field_schema, use_logical_types):
         return __PRIMITIVE_TYPE_MAPPING[field_schema.fullname].__name__
     elif isinstance(field_schema, schema.FixedSchema):
         return 'bytes'
+    elif isinstance(field_schema, schema.EnumSchema):
+        # For enums, we have their "class" types, but they're actually
+        # represented as strings. This is a decent hack to work around
+        # the issue.
+        return f'Union[str, "{field_schema.name}Class"]'
     elif isinstance(field_schema, schema.NamedSchema):
         return f'"{field_schema.name}Class"'
     elif isinstance(field_schema, schema.ArraySchema):
