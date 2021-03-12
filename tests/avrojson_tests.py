@@ -45,7 +45,13 @@ class AvroJsonTest(unittest.TestCase):
         self.assertDictEqual(self.converter.from_json_object(d, test_schema), d)
 
     def test_union(self):
-        test_schema = make_avsc_object(['int', 'string', 'null'])
+        test_schema = make_avsc_object(['null', 'int', 'string', {'type': 'record', 'name': 'test_record', 'fields': [
+            {'name': 'field1', 'type': 'int'},
+            {'name': 'field2', 'type': 'string'}
+        ]}, {'type': 'record', 'name': 'test_record2', 'fields': [
+            {'name': 'field1', 'type': 'int'},
+            {'name': 'field2', 'type': 'string'}
+        ]}])
         result1 = dict(string='a')
         result2 = dict(int=2)
 
