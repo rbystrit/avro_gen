@@ -26,6 +26,16 @@ class DictWrapper(dict):
     def to_obj(self, tuples=False) -> dict:
         conv = self._get_json_converter().with_tuple_union(tuples)
         return conv.to_json_object(self, self.RECORD_SCHEMA)
+    
+    def validate(self) -> bool:
+        """
+        Checks the current object against its pre-defined schema. This does
+        not ensure that an object is completely valid (e.g. we don't check that
+        the URNs are formatted corrected and point to valid objects), but only
+        checks it against the Avro schema. Returns True if valid.
+        """
+        conv = self._get_json_converter()
+        return conv.validate(self.RECORD_SCHEMA, self)
 
     def __getitem__(self, item):
         return self._inner_dict.__getitem__(item)
