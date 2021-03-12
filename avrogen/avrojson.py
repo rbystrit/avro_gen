@@ -142,6 +142,15 @@ class AvroJsonConverter(object):
                              self.from_json_object(field.default, field.type) if field.has_default else None),
                 field.type)
         return result
+    
+    def _is_unambiguous_union(self, writers_schema) -> bool:
+        advanced_count = 0
+        for candidate_schema in writers_schema.schemas:
+            if not isinstance(candidate_schema, schema.PrimitiveSchema):
+                advanced_count += 1
+        if advanced_count <= 1:
+            return True
+        return False
 
     def _union_to_json(self, data_obj, writers_schema):
         index_of_schema = -1
@@ -163,10 +172,16 @@ class AvroJsonConverter(object):
         candidate_schema = writers_schema.schemas[index_of_schema]
         if candidate_schema.type == 'null':
             return None
+        
+        output_obj = self._generic_to_json(data_obj, candidate_schema)
+        if self._is_unambiguous_union(writers_schema):
+            # If the union is unambiguous, we can avoid wrapping it in
+            # an extra layer of tuples or dicts.
+            return output_obj
         if self.fastavro:
             # Fastavro likes tuples instead of dicts for union types.
-            return (self._fullname(candidate_schema), self._generic_to_json(data_obj, candidate_schema))
-        return {self._fullname(candidate_schema): self._generic_to_json(data_obj, candidate_schema)}
+            return (self._fullname(candidate_schema), output_obj)
+        return {self._fullname(candidate_schema): output_obj}
 
     def _generic_from_json(self, json_obj, writers_schema, readers_schema):
         if (writers_schema.type not in ['union', 'error_union']
