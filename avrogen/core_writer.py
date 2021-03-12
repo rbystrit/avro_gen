@@ -402,22 +402,25 @@ def write_record_init(record, writer, use_logical_types):
     writer.write('\n\n@overload')
     writer.write('\ndef __init__(self,')
     with writer.indent():
+        delayed_lines = []
         for field in record.fields:  # type: schema.Field
             name = get_field_name(field, use_logical_types)
-            # default = get_default(field, use_logical_types)
             ret_type_name = get_field_type_name(field.type, use_logical_types)
-            # We can actually skip setting real defaults here. It won't actually
-            # make a difference because this is an overload method and not
-            # a real one. However, we need to set them to something so that
-            # they all become optional arguments.
-            writer.write(f'\n{name}: Optional[{ret_type_name}]=None,')
+            default_type, nullable = find_type_of_default(field.type)
+
+            if nullable:
+                delayed_lines.append(f'\n{name}: {ret_type_name}=None,')
+            else:
+                writer.write(f'\n{name}: {ret_type_name},')
+            # default = get_default(field, use_logical_types)
             # writer.write(f'\n{name}: {ret_type_name} = {default},')
+        for line in delayed_lines:
+            writer.write(line)
     writer.write('\n):')
     with writer.indent():
-        writer.write('\n# Note that the defaults here are not necessarily None.')
         writer.write('\n...')
 
-    writer.write('\n@overload')
+    writer.write('\n\n@overload')
     writer.write('\ndef __init__(self, _inner_dict: Optional[dict]=None):')
     with writer.indent():
         writer.write('\n...')
