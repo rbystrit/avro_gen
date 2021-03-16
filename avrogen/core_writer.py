@@ -88,7 +88,7 @@ def get_default(field, use_logical_types, my_full_name=None, f_name=None):
         elif isinstance(default_type, schema.ArraySchema):
             return 'list()'
         elif isinstance(default_type, schema.FixedSchema):
-            return 'str()'
+            return 'bytes()'
         elif isinstance(default_type, schema.RecordSchema):
             f = clean_fullname(default_type.name)
             return f'{f}Class()'
@@ -154,7 +154,7 @@ def {name}(self) -> {ret_type_name}:
 
 
 @{name}.setter
-def {name}(self, value: {ret_type_name}):
+def {name}(self, value: {ret_type_name}) -> None:
     {set_docstring}
     self._inner_dict['{raw_name}'] = value
 
