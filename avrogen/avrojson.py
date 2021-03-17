@@ -44,6 +44,28 @@ class AvroJsonConverter(object):
                     False not in
                     [self.validate(expected_schema.values, v, skip_logical_types) for v in datum.values()])
         elif schema_type in ['union', 'error_union']:
+            # If the union type is using a "name" to distinguish the type, we
+            # must handle this specially during validation.
+            value_type = None
+            if not self.fastavro and isinstance(datum, collections.Mapping):
+                if len(datum) == 1:
+                    items = list(six.iteritems(datum))
+                    if not items:
+                        return None
+                    value_type = items[0][0]
+                    value = items[0][1]
+            elif self.fastavro and (isinstance(datum, list) or isinstance(datum, tuple)):
+                if len(datum) == 2:
+                    value_type = datum[0]
+                    value = datum[1]
+            if value_type is not None:
+                for s in expected_schema.schemas:
+                    name = self._fullname(s)
+                    if name == value_type:
+                        if self.validate(s, value, skip_logical_types):
+                            return True
+                        # If the specialized validation fails, we still attempt normal validation.
+
             return True in [self.validate(s, datum, skip_logical_types) for s in expected_schema.schemas]
         elif schema_type in ['record', 'error', 'request']:
             return (isinstance(datum, dict) and
@@ -89,7 +111,7 @@ class AvroJsonConverter(object):
             return type(data_obj).RECORD_SCHEMA
         return None
 
-    def _generic_to_json(self, data_obj, writers_schema):
+    def _generic_to_json(self, data_obj, writers_schema, was_within_array=False):
         if self.use_logical_types and writers_schema.props.get('logicalType'):
             lt = self.logical_types.get(writers_schema.props.get('logicalType'))  # type: logical.LogicalTypeProcessor
             if lt.can_convert(writers_schema):
@@ -112,7 +134,7 @@ class AvroJsonConverter(object):
         elif writers_schema.type in ['record', 'error', 'request']:
             result = self._record_to_json(data_obj, writers_schema)
         elif writers_schema.type in ['union', 'error_union']:
-            result = self._union_to_json(data_obj, writers_schema)
+            result = self._union_to_json(data_obj, writers_schema, was_within_array)
         else:
             raise schema.AvroException('Invalid schema type: %s' % writers_schema.type)
 
@@ -128,7 +150,7 @@ class AvroJsonConverter(object):
         return data_obj
 
     def _array_to_json(self, data_obj, writers_schema):
-        return [self._generic_to_json(x, writers_schema.items) for x in data_obj]
+        return [self._generic_to_json(x, writers_schema.items, True) for x in data_obj]
 
     def _map_to_json(self, data_obj, writers_schema):
         return {name: self._generic_to_json(x, writers_schema.values) for name, x in six.iteritems(data_obj)}
@@ -152,7 +174,7 @@ class AvroJsonConverter(object):
             return True
         return False
 
-    def _union_to_json(self, data_obj, writers_schema):
+    def _union_to_json(self, data_obj, writers_schema, was_within_array=False):
         index_of_schema = -1
         data_schema = self._get_record_schema_if_available(data_obj)
         for i, candidate_schema in enumerate(writers_schema.schemas):
@@ -174,9 +196,10 @@ class AvroJsonConverter(object):
             return None
         
         output_obj = self._generic_to_json(data_obj, candidate_schema)
-        if self._is_unambiguous_union(writers_schema):
+        if not was_within_array and self._is_unambiguous_union(writers_schema):
             # If the union is unambiguous, we can avoid wrapping it in
             # an extra layer of tuples or dicts.
+            # Arrays with unions inside must specify the type.
             return output_obj
         if self.fastavro:
             # Fastavro likes tuples instead of dicts for union types.
