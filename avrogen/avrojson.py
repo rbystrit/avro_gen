@@ -196,9 +196,9 @@ class AvroJsonConverter(object):
             return None
         
         output_obj = self._generic_to_json(data_obj, candidate_schema)
-        if not was_within_array and self._is_unambiguous_union(writers_schema):
+        if not self.fastavro and not was_within_array and self._is_unambiguous_union(writers_schema):
             # If the union is unambiguous, we can avoid wrapping it in
-            # an extra layer of tuples or dicts.
+            # an extra layer of tuples or dicts. Fastavro doesn't like this though.
             # Arrays with unions inside must specify the type.
             return output_obj
         if self.fastavro:
