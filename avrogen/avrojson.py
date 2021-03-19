@@ -47,7 +47,7 @@ class AvroJsonConverter(object):
             # If the union type is using a "name" to distinguish the type, we
             # must handle this specially during validation.
             value_type = None
-            if not self.fastavro and isinstance(datum, collections.Mapping):
+            if not self.fastavro and isinstance(datum, dict):
                 if len(datum) == 1:
                     items = list(six.iteritems(datum))
                     if not items:
@@ -264,7 +264,7 @@ class AvroJsonConverter(object):
             return None
         value_type = None
         value = None
-        if not self.fastavro and isinstance(json_obj, collections.Mapping):
+        if not self.fastavro and isinstance(json_obj, dict):
             items = list(six.iteritems(json_obj))
             if not items:
                 return None

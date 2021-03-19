@@ -3,7 +3,6 @@ from avro import schema, io
 import functools
 import abc
 import six
-import collections
 import datetime
 import decimal
 import struct
