@@ -4,7 +4,6 @@ import functools
 import abc
 import six
 import collections
-import frozendict
 import datetime
 import decimal
 import struct
@@ -233,14 +232,14 @@ class TimestampMillisLogicalTypeProcessor(TimestampMicrosLogicalTypeProcessor):
                 else 'datetime.datetime.now()')
 
 
-DEFAULT_LOGICAL_TYPES = frozendict.frozendict(**{
+DEFAULT_LOGICAL_TYPES = {
     'decimal': DecimalLogicalTypeProcessor(),
     'date': DateLogicalTypeProcessor(),
     'time-millis': TimeMillisLogicalTypeProcessor(),
     'time-micros': TimeMicrosLogicalTypeProcessor(),
     'timestamp-millis': TimestampMillisLogicalTypeProcessor(),
     'timestamp-micros': TimestampMicrosLogicalTypeProcessor(),
-})
+}
 
 
 class LogicalDatumReader(io.DatumReader):

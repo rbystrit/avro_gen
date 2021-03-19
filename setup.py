@@ -20,7 +20,7 @@ else:
 
 setup(
     name='avro-gen3',
-    version='0.3.6',
+    version='0.3.7',
 
     description='Avro record class and specific record reader generator',
     long_description=long_description,
@@ -61,5 +61,5 @@ setup(
     },
     install_requires=["avro >= 1.8.0 ; python_version<'3.0'",
                       "avro_python3 >= 1.8.0 ; python_version>'3.0'",
-                      'six', 'frozendict', 'tzlocal', 'pytz'],
+                      'six', 'tzlocal', 'pytz'],
 )
