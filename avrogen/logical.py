@@ -16,12 +16,6 @@ if six.PY3:
 EPOCH_DATE = datetime.date(1970, 1, 1)
 SECONDS_IN_DAY = 24 * 60 * 60
 
-# below doesn't work for time zones which are ahead of UTC,
-# so will need to switch to datetime arithmetic
-#EPOCH_TT = time.mktime((1970, 1, 1, 0, 0, 0, 0, 0, 0))
-
-EPOCH_TT = -datetime.datetime(1970, 1, 1).astimezone(tzlocal.get_localzone()).utcoffset().total_seconds()
-
 
 class LogicalTypeProcessor(object, six.with_metaclass(abc.ABCMeta)):
     @abc.abstractmethod
@@ -187,6 +181,12 @@ class TimestampMicrosLogicalTypeProcessor(LogicalTypeProcessor):
         return isinstance(datum, datetime.datetime)
 
     def convert(self, writers_schema, value):
+        # below doesn't work for time zones which are ahead of UTC,
+        # so will need to switch to datetime arithmetic
+        #EPOCH_TT = time.mktime((1970, 1, 1, 0, 0, 0, 0, 0, 0))
+
+        EPOCH_TT = -datetime.datetime(1970, 1, 1).astimezone(tzlocal.get_localzone()).utcoffset().total_seconds()
+
         if not isinstance(value, datetime.datetime):
             if isinstance(value, datetime.date):
                 value = tzlocal.get_localzone().localize(
