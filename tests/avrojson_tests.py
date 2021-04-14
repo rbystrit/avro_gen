@@ -131,7 +131,8 @@ class AvroJsonTest(unittest.TestCase):
             RECORD_SCHEMA = make_avsc_object(
                 dict(type='record', name='record1', fields=[dict(name='f1', type='int')]))
 
-            def __init__(self, **kwargs):
-                super(DD, self).__init__(kwargs)
+            def __init__(self, f1: int):
+                super().__init__()
+                self._inner_dict['f1'] = f1
 
         self.assertDictEqual(self.converter.to_json_object(DD(f1=42)), dict(f1=42))

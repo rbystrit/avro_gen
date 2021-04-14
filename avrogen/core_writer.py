@@ -91,7 +91,7 @@ def get_default(field, use_logical_types, my_full_name=None, f_name=None):
             return 'bytes()'
         elif isinstance(default_type, schema.RecordSchema):
             f = clean_fullname(default_type.name)
-            return f'{f}Class()'
+            return f'{f}Class.construct_with_defaults()'
     raise AttributeError('cannot get default for field')
 
 def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
@@ -341,7 +341,12 @@ def write_reader_impl(record_types, writer, use_logical_types):
                 '\nresult = super(SpecificDatumReader, self).read_record(writers_schema, readers_schema, decoder)')
             writer.write('\n\nif readers_schema.fullname in SpecificDatumReader.SCHEMA_TYPES:')
             with writer.indent():
-                writer.write('\nresult = SpecificDatumReader.SCHEMA_TYPES[readers_schema.fullname](result)')
+                writer.write('\ntp = SpecificDatumReader.SCHEMA_TYPES[readers_schema.fullname]')
+                writer.write('\nif issubclass(tp, DictWrapper):')
+                writer.write('\n    result = tp.construct(result)')
+                writer.write('\nelse:')
+                writer.write('\n    # tp is an enum')
+                writer.write('\n    result = tp(result)  # type: ignore')
             writer.write('\n\nreturn result')
 
 
@@ -399,7 +404,6 @@ def write_schema_record(record, writer, use_logical_types):
 
 
 def write_record_init(record, writer, use_logical_types):
-    writer.write('\n\n@overload')
     writer.write('\ndef __init__(self,')
     with writer.indent():
         delayed_lines = []
@@ -418,32 +422,26 @@ def write_record_init(record, writer, use_logical_types):
             writer.write(line)
     writer.write('\n):')
     with writer.indent():
-        writer.write('\n...')
-
-    writer.write('\n\n@overload')
-    writer.write('\ndef __init__(self, _inner_dict: Optional[dict]=None):')
-    with writer.indent():
-        writer.write('\n...')
-
-    writer.write('\n\ndef __init__(self, _inner_dict=None, **kwargs):')
-    with writer.indent():
         writer.write('\n')
-        writer.write('super({name}Class, self).__init__({{}})'.format(name=record.name))
+        writer.write('super().__init__()')
+        writer.write('\n')
 
+        for field in record.fields:  # type: schema.Field
+            name = get_field_name(field, use_logical_types)
+            writer.write(f'\nself.{name} = {name}')
+
+    writer.write('\n\n@classmethod')
+    writer.write(f'\ndef construct_with_defaults(cls) -> "{record.name}Class":')
+    with writer.indent():
+        writer.write('\nself = cls.construct({})')
+        writer.write('\nself._restore_defaults()')
+        writer.write('\n')
+        writer.write('\nreturn self')
+
+    writer.write('\n')
+    writer.write(f'\ndef _restore_defaults(self) -> None:')
+    with writer.indent():
         write_defaults(record, writer, use_logical_types=use_logical_types)
-
-        writer.write('\nif _inner_dict is not None:')
-        with writer.indent():
-            writer.write('\nfor key, value in _inner_dict.items():')
-            with writer.indent():
-                writer.write('\ngetattr(self, key)')
-                writer.write('\nsetattr(self, key, value)')
-        writer.write('\nfor key, value in kwargs.items():')
-        with writer.indent():
-            writer.write('\nif value is not None:')
-            with writer.indent():
-                writer.write('\ngetattr(self, key)')
-                writer.write('\nsetattr(self, key, value)')
 
 
 def write_serialization_stubs(record, writer, use_logical_types):

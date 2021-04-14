@@ -9,6 +9,7 @@ from avro import datafile, schema
 import tempfile
 import avrogen.schema
 import avrogen.protocol
+from avrogen.dict_wrapper import DictWrapper
 import logging
 import sys
 import datetime
@@ -70,6 +71,14 @@ class GeneratorTestCase(unittest.TestCase):
         except ModuleNotFoundError as e:
             breakpoint()
 
+    def test_dict_wrapper(self):
+        a = DictWrapper.construct({'hi': 'foo'})
+        b = DictWrapper.construct({'hi': 'foo'})
+        c = DictWrapper.construct({'hi': 'bar'})
+
+        self.assertEqual(a, b)
+        self.assertNotEqual(a, c)
+
     def test_simple_record(self):
         schema_json = self.read_schema('simple_record.json')
         avrogen.schema.write_schema_files(schema_json, self.output_dir)
@@ -78,7 +87,7 @@ class GeneratorTestCase(unittest.TestCase):
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
         self.assertTrue(hasattr(root_module, 'LongList'))
 
-        long_list = root_module.LongList()
+        long_list = root_module.LongList.construct_with_defaults()
         self.assertTrue(hasattr(long_list, 'value'))
         self.assertTrue(hasattr(long_list, 'next'))
 
@@ -90,7 +99,7 @@ class GeneratorTestCase(unittest.TestCase):
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
         self.assertTrue(hasattr(root_module, 'LongList'))
 
-        long_list = root_module.LongList()
+        long_list = root_module.LongList.construct_with_defaults()
         self.assertTrue(hasattr(long_list, 'value'))
         self.assertTrue(hasattr(long_list, 'next'))
         self.assertTrue(hasattr(long_list, 'hello'))
@@ -103,7 +112,7 @@ class GeneratorTestCase(unittest.TestCase):
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
         self.assertTrue(hasattr(root_module, 'LongList'))
 
-        long_list = root_module.LongList()
+        long_list = root_module.LongList.construct_with_defaults()
         self.assertTrue(hasattr(long_list, 'value'))
         self.assertTrue(hasattr(long_list, 'next'))
 
@@ -139,14 +148,14 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertTrue(hasattr(common_ns, 'AvroKnowableBoolean'))
         self.assertTrue(hasattr(common_ns, 'AvroKnowableOptionPoint'))
 
-        tweet = twitter_ns.AvroTweet()
-        tweet_meta = twitter_ns.AvroTweetMetadata()
-        point = common_ns.AvroPoint()
-        adt = common_ns.AvroDateTime()
-        kos = common_ns.AvroKnowableOptionString()
-        kls = common_ns.AvroKnowableListString()
-        kb = common_ns.AvroKnowableBoolean()
-        kop = common_ns.AvroKnowableOptionString()
+        tweet = twitter_ns.AvroTweet.construct_with_defaults()
+        tweet_meta = twitter_ns.AvroTweetMetadata.construct_with_defaults()
+        point = common_ns.AvroPoint.construct_with_defaults()
+        adt = common_ns.AvroDateTime.construct_with_defaults()
+        kos = common_ns.AvroKnowableOptionString.construct_with_defaults()
+        kls = common_ns.AvroKnowableListString.construct_with_defaults()
+        kb = common_ns.AvroKnowableBoolean.construct_with_defaults()
+        kop = common_ns.AvroKnowableOptionString.construct_with_defaults()
 
         self.assertIsNotNone(twitter_ns.AvroTweet.RECORD_SCHEMA)
         self.assertIsNotNone(twitter_ns.AvroTweetMetadata.RECORD_SCHEMA)
@@ -345,18 +354,18 @@ class GeneratorTestCase(unittest.TestCase):
             AvroKnowableOptionString, AvroKnowableListString, AvroKnowableBoolean, AvroKnowableOptionPoint
         from twitter_schema import SpecificDatumReader
 
-        tweet = AvroTweet()
+        tweet = AvroTweet.construct_with_defaults()
         tweet.ID = 1
         tweet.text = "AvroGenTest"
         tweet.authorScreenName = 'AvrogenTestName'
         tweet.authorProfileImageURL = 'http://'
         tweet.authorUserID = 2
 
-        tweet.location = AvroPoint()
+        tweet.location = AvroPoint.construct_with_defaults()
         tweet.location.latitude = 1.0
         tweet.location.longitude = 2.0
         tweet.placeID = "Ether"
-        tweet.createdAt = AvroDateTime()
+        tweet.createdAt = AvroDateTime.construct_with_defaults()
         tweet.createdAt.dateTimeString = "2016-10-10 10:10:10"
 
         tweet.metadata.inReplyToScreenName.known = False
@@ -389,7 +398,7 @@ class GeneratorTestCase(unittest.TestCase):
         tmp_file = tempfile.mktemp()
         with open(tmp_file, "w+b") as f:
             df = datafile.DataFileWriter(f, io.DatumWriter(), schema.parse(schema_json))
-            df.append(tweet)
+            df.append(tweet.to_avro_writable())
             df.close()
 
         with open(tmp_file, "rb") as f:

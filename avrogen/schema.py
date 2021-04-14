@@ -144,7 +144,9 @@ def write_specific_reader(record_types, output_folder, use_logical_types):
     """
     with open(os.path.join(output_folder, "__init__.py"), "a+") as f:
         writer = TabbedWriter(f)
-        writer.write('from .schema_classes import SCHEMA as get_schema_type')
+        writer.write('from typing import cast')
+        writer.write('\nfrom avrogen.dict_wrapper import DictWrapper')
+        writer.write('\nfrom .schema_classes import SCHEMA as get_schema_type')
         writer.write('\nfrom .schema_classes import _json_converter as json_converter')
         for t in record_types:
             writer.write(f'\nfrom .schema_classes import {t.split(".")[-1]}Class')

@@ -2,6 +2,7 @@ import collections
 import six
 
 from . import logical
+from .dict_wrapper import DictWrapper
 from avro import schema
 from avro import io
 
@@ -44,6 +45,14 @@ class AvroJsonConverter(object):
                     False not in
                     [self.validate(expected_schema.values, v, skip_logical_types) for v in datum.values()])
         elif schema_type in ['union', 'error_union']:
+            if isinstance(datum, DictWrapper):
+                # Match the type based on the declared schema.
+                data_schema = self._get_record_schema_if_available(datum)
+                for i, candidate_schema in enumerate(expected_schema.schemas):
+                    if candidate_schema.namespace == data_schema.namespace \
+                        and candidate_schema.name == data_schema.name:
+                        return self.validate(candidate_schema, datum)
+
             # If the union type is using a "name" to distinguish the type, we
             # must handle this specially during validation.
             value_type = None
@@ -68,7 +77,7 @@ class AvroJsonConverter(object):
 
             return True in [self.validate(s, datum, skip_logical_types) for s in expected_schema.schemas]
         elif schema_type in ['record', 'error', 'request']:
-            return (isinstance(datum, dict) and
+            return ((isinstance(datum, dict) or isinstance(datum, DictWrapper)) and
                     False not in
                     [self.validate(f.type, datum.get(f.name), skip_logical_types) for f in expected_schema.fields])
 
@@ -288,16 +297,21 @@ class AvroJsonConverter(object):
             if self.validate(s, json_obj, skip_logical_types=True):
                 return self._generic_from_json(json_obj, s, readers_schema)
         raise schema.AvroException('Datum union type not in schema: %s', value_type)
+    
+    def _make_type(self, tp, record):
+        if issubclass(tp, DictWrapper):
+            return tp.construct(record)
+        return tp(record)
 
     def _instantiate_record(self, decoded_record, writers_schema, readers_schema):
         # First try the fullname, which includes namespaces.
         readers_name = self._fullname(readers_schema)
         if readers_name in self.schema_types:
-            return self.schema_types[readers_name](decoded_record)
+            return self._make_type(self.schema_types[readers_name], decoded_record)
         # Fallback to the bare name, without namespace.
         readers_name = readers_schema.name
         if readers_name in self.schema_types:
-            return self.schema_types[readers_name](decoded_record)
+            return self._make_type(self.schema_types[readers_name], decoded_record)
         return decoded_record
 
     def _record_from_json(self, json_obj, writers_schema, readers_schema):

@@ -1,20 +1,35 @@
-from typing import NoReturn, TypeVar, Type
+from typing import NoReturn, TypeVar, Type, TYPE_CHECKING
 import six
 
-from .avrojson import AvroJsonConverter
+if TYPE_CHECKING:
+    from .avrojson import AvroJsonConverter
 
 TC = TypeVar('TC', bound='DictWrapper')
 
 
-class DictWrapper(dict):
+class DictWrapper:
     __slots__ = ['_inner_dict']
+    _inner_dict: dict
 
-    def __init__(self, inner_dict=None):
-        super(DictWrapper, self).__init__()
-        self._inner_dict = {} if inner_dict is None else inner_dict  # type: dict
+    def __init__(self):
+        self._inner_dict = {}
     
     @classmethod
-    def _get_json_converter(cls) -> AvroJsonConverter:
+    def construct(cls: Type[TC], inner_dict: dict) -> TC:
+        """
+        Construct an object without any validations or type annotation checks.
+        You should not be using this under normal circumstances.
+        """
+        obj = cls.__new__(cls)
+        obj._inner_dict = {}
+        obj._restore_defaults()
+        for key, value in inner_dict.items():
+            if value:
+                obj._inner_dict[key] = value
+        return obj
+
+    @classmethod
+    def _get_json_converter(cls) -> 'AvroJsonConverter':
         # This attribute will be set by the AvroJsonConverter's init method.
         return cls._json_converter
 
@@ -27,6 +42,12 @@ class DictWrapper(dict):
         conv = self._get_json_converter().with_tuple_union(tuples)
         return conv.to_json_object(self, self.RECORD_SCHEMA)
     
+    def to_avro_writable(self, fastavro=False) -> dict:
+        return self.to_obj(tuples=fastavro)
+    
+    def _restore_defaults(self) -> None:
+        pass
+    
     def validate(self) -> bool:
         """
         Checks the current object against its pre-defined schema. This does
@@ -36,18 +57,9 @@ class DictWrapper(dict):
         """
         conv = self._get_json_converter()
         return conv.validate(self.RECORD_SCHEMA, self)
-
-    def __getitem__(self, item):
-        return self._inner_dict.__getitem__(item)
-
-    def __iter__(self):
-        return self._inner_dict.__iter__()
-
-    def __len__(self):
-        return self._inner_dict.__len__()
-
-    def __setitem__(self, key, value) -> NoReturn:
-        raise NotImplementedError()
+    
+    def get(self, item, default=None):
+        return self._inner_dict.get(item, default)
 
     def items(self):
         return self._inner_dict.items()
@@ -55,62 +67,19 @@ class DictWrapper(dict):
     def keys(self):
         return self._inner_dict.keys()
 
-    def values(self):
-        return self._inner_dict.values()
-
-    def fromkeys(self, v=None) -> NoReturn:
-        raise NotImplementedError
-
-    def clear(self) -> NoReturn:
-        raise NotImplementedError
-
     def copy(self):
         return DictWrapper(self._inner_dict.copy())
 
-    def get(self, k, d=None):
-        return self._inner_dict.get(k, d)
-
-    def __contains__(self, item):
-        return self._inner_dict.__contains__(item)
-
     def __str__(self):
-        return self._inner_dict.__str__()
+        return f"{self.__class__.__name__}({self._inner_dict.__str__()})"
 
     def __repr__(self):
-        return self._inner_dict.__repr__()
-
-    def __sizeof__(self):
-        return self._inner_dict.__sizeof__()
-
-    def pop(self, k, d=None) -> NoReturn:
-        raise NotImplementedError()
-
-    def popitem(self) -> NoReturn:
-        raise NotImplementedError()
-
-    def update(self, E=None, **F) -> NoReturn:
-        raise NotImplementedError()
-
-    def setdefault(self, k, d=None) -> NoReturn:
-        raise NotImplementedError()
+        return f"{self.__class__.__name__}({self._inner_dict.__repr__()})"
 
     def __eq__(self, other):
-        return self._inner_dict.__eq__(other)
+        if isinstance(other, DictWrapper):
+            return self._inner_dict.__eq__(other._inner_dict)
+        return False
 
     def __ne__(self, other):
-        return self._inner_dict.__ne__(other)
-
-    def __le__(self, other):
-        return self._inner_dict.__le__(other)
-
-    def __ge__(self, other):
-        return self._inner_dict.__ge__(other)
-
-    def __lt__(self, other):
-        return self._inner_dict.__lt__(other)
-
-    def __gt__(self, other):
-        return self._inner_dict.__gt__(other)
-
-    def __hash__(self):
-        return self._inner_dict.__hash__()
+        return not self.__eq__(other)
