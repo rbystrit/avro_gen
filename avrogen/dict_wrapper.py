@@ -1,19 +1,18 @@
-from typing import NoReturn, TypeVar, Type, TYPE_CHECKING
-import six
+from typing import TypeVar, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .avrojson import AvroJsonConverter
 
-TC = TypeVar('TC', bound='DictWrapper')
+TC = TypeVar("TC", bound="DictWrapper")
 
 
 class DictWrapper:
-    __slots__ = ['_inner_dict']
+    __slots__ = ["_inner_dict"]
     _inner_dict: dict
 
     def __init__(self):
         self._inner_dict = {}
-    
+
     @classmethod
     def construct(cls: Type[TC], inner_dict: dict) -> TC:
         """
@@ -29,25 +28,25 @@ class DictWrapper:
         return obj
 
     @classmethod
-    def _get_json_converter(cls) -> 'AvroJsonConverter':
+    def _get_json_converter(cls) -> "AvroJsonConverter":
         # This attribute will be set by the AvroJsonConverter's init method.
         return cls._json_converter
 
     @classmethod
-    def from_obj(cls: Type[TC], obj, tuples=False) -> TC:
+    def from_obj(cls: Type[TC], obj: dict, tuples: bool = False) -> TC:
         conv = cls._get_json_converter().with_tuple_union(tuples)
         return conv.from_json_object(obj, cls.RECORD_SCHEMA)
 
-    def to_obj(self, tuples=False) -> dict:
+    def to_obj(self, tuples: bool = False) -> dict:
         conv = self._get_json_converter().with_tuple_union(tuples)
         return conv.to_json_object(self, self.RECORD_SCHEMA)
-    
-    def to_avro_writable(self, fastavro=False) -> dict:
+
+    def to_avro_writable(self, fastavro: bool = False) -> dict:
         return self.to_obj(tuples=fastavro)
-    
+
     def _restore_defaults(self) -> None:
         pass
-    
+
     def validate(self) -> bool:
         """
         Checks the current object against its pre-defined schema. This does
@@ -57,7 +56,7 @@ class DictWrapper:
         """
         conv = self._get_json_converter()
         return conv.validate(self.RECORD_SCHEMA, self)
-    
+
     def get(self, item, default=None):
         return self._inner_dict.get(item, default)
 
@@ -66,9 +65,6 @@ class DictWrapper:
 
     def keys(self):
         return self._inner_dict.keys()
-
-    def copy(self):
-        return DictWrapper(self._inner_dict.copy())
 
     def __str__(self):
         return f"{self.__class__.__name__}({self._inner_dict.__str__()})"
