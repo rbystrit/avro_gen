@@ -176,7 +176,10 @@ class AvroJsonConverter(object):
     
     def _is_unambiguous_union(self, writers_schema) -> bool:
         if any(isinstance(candidate_schema, schema.EnumSchema) for candidate_schema in writers_schema.schemas):
-            if any(candidate_schema.type == 'string' for candidate_schema in writers_schema.schemas):
+            if len(writers_schema.schemas) == 2 and any(candidate_schema.type == 'null' for candidate_schema in writers_schema.schemas):
+                # Enums and null do not conflict, so this is fine.
+                return True
+            else:
                 # Enum and string conflict, so this case is ambiguous.
                 return False
 
