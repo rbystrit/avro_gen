@@ -175,11 +175,13 @@ class AvroJsonConverter(object):
         return result
     
     def _is_unambiguous_union(self, writers_schema) -> bool:
+        if any(isinstance(candidate_schema, schema.EnumSchema) for candidate_schema in writers_schema.schemas):
+            if any(candidate_schema.type == 'string' for candidate_schema in writers_schema.schemas):
+                # Enum and string conflict, so this case is ambiguous.
+                return False
+
         advanced_count = 0
         for candidate_schema in writers_schema.schemas:
-            if isinstance(candidate_schema, schema.EnumSchema):
-                # Enum and string conflict, so enums are always ambiguous.
-                return False
             if not isinstance(candidate_schema, schema.PrimitiveSchema):
                 advanced_count += 1
         if advanced_count <= 1:
