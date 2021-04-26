@@ -23,7 +23,10 @@ class DictWrapper:
         obj._inner_dict = {}
         obj._restore_defaults()
         for key, value in inner_dict.items():
-            if value:
+            # The call to _restore_defaults() populates the dict with the full set of keys.
+            if key not in obj._inner_dict:
+                raise ValueError(f"{cls.__name__} does not support field {key}")
+            if value is not None:
                 obj._inner_dict[key] = value
         return obj
 

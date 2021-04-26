@@ -282,7 +282,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
         writer.write('from avrogen import logical\n')
     writer.write('from avro.schema import RecordSchema, SchemaFromJSONData as make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
-    writer.write('from typing import List, Dict, Union, Optional, overload\n')
+    writer.write('from typing import List, Dict, Union, Optional\n')
     writer.write('\n')
 
 
