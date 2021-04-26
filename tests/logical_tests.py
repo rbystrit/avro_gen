@@ -41,15 +41,15 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertFalse(p.does_match(test_schema2, test_schema2))
         self.assertFalse(p.does_match(test_schema3, test_schema3))
 
-        self.assertEquals(p.convert(test_schema1, 1234), '1234')
-        self.assertEquals(p.convert(test_schema1, 1234.5), '1234.5')
-        self.assertEquals(p.convert(test_schema1, 12345), '12345')
-        self.assertEquals(p.convert(test_schema1, decimal.Decimal('12345.678')), '12345.678')
+        self.assertEqual(p.convert(test_schema1, 1234), '1234')
+        self.assertEqual(p.convert(test_schema1, 1234.5), '1234.5')
+        self.assertEqual(p.convert(test_schema1, 12345), '12345')
+        self.assertEqual(p.convert(test_schema1, decimal.Decimal('12345.678')), '12345.678')
 
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(p.convert_back(test_schema1, test_schema1, '123456.789'), decimal.Decimal('123456.789'))
+        self.assertEqual(p.convert_back(test_schema1, test_schema1, '123456.789'), decimal.Decimal('123456.789'))
 
     def test_date(self):
         p = DateLogicalTypeProcessor()
@@ -67,11 +67,11 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertTrue(p.does_match(test_schema2, test_schema2))
         self.assertFalse(p.does_match(test_schema3, test_schema3))
 
-        self.assertEquals(p.convert(test_schema2, datetime.date(2015, 3, 4)), 16498)
+        self.assertEqual(p.convert(test_schema2, datetime.date(2015, 3, 4)), 16498)
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(p.convert_back(test_schema2, test_schema2, 16498), datetime.date(2015, 3, 4))
+        self.assertEqual(p.convert_back(test_schema2, test_schema2, 16498), datetime.date(2015, 3, 4))
 
     def test_time_micros(self):
         p = TimeMicrosLogicalTypeProcessor()
@@ -89,11 +89,11 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertTrue(p.does_match(test_schema2, test_schema2))
         self.assertFalse(p.does_match(test_schema3, test_schema3))
 
-        self.assertEquals(p.convert(test_schema2, datetime.time(23, 24, 25, 123456)), 84265123456)
+        self.assertEqual(p.convert(test_schema2, datetime.time(23, 24, 25, 123456)), 84265123456)
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(p.convert_back(test_schema2, test_schema2, 84265123456), datetime.time(23, 24, 25, 123456))
+        self.assertEqual(p.convert_back(test_schema2, test_schema2, 84265123456), datetime.time(23, 24, 25, 123456))
 
     def test_time_millis(self):
         p = TimeMillisLogicalTypeProcessor()
@@ -111,11 +111,11 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertTrue(p.does_match(test_schema2, test_schema2))
         self.assertFalse(p.does_match(test_schema3, test_schema3))
 
-        self.assertEquals(p.convert(test_schema2, datetime.time(23, 24, 25, 123456)), 84265123)
+        self.assertEqual(p.convert(test_schema2, datetime.time(23, 24, 25, 123456)), 84265123)
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(p.convert_back(test_schema2, test_schema2, 84265123), datetime.time(23, 24, 25, 123000))
+        self.assertEqual(p.convert_back(test_schema2, test_schema2, 84265123), datetime.time(23, 24, 25, 123000))
 
     def test_timestamp_micros(self):
         p = TimestampMicrosLogicalTypeProcessor()
@@ -134,19 +134,19 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertFalse(p.does_match(test_schema3, test_schema3))
 
         dt1 = datetime.datetime(2015, 5, 1)
-        self.assertEquals(p.convert(test_schema2, datetime.date(2015, 5, 1)), p.convert(test_schema2, dt1))
-        self.assertEquals(p.convert(test_schema2, pytz.UTC.localize(datetime.datetime(2015, 5, 1, microsecond=123456))),
+        self.assertEqual(p.convert(test_schema2, datetime.date(2015, 5, 1)), p.convert(test_schema2, dt1))
+        self.assertEqual(p.convert(test_schema2, pytz.UTC.localize(datetime.datetime(2015, 5, 1, microsecond=123456))),
                           1430438400123456)
 
         offset_res = 1430452800123456
-        self.assertEquals(p.convert(test_schema2,
+        self.assertEqual(p.convert(test_schema2,
                                     pytz.timezone('America/New_York').localize(
                                         datetime.datetime(2015, 5, 1, 0, 0, 0, microsecond=123456))),
                           offset_res)
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(
+        self.assertEqual(
             p.convert_back(test_schema2, test_schema2, p.convert(test_schema2, datetime.datetime(2016, 1, 1))),
             datetime.datetime(2016, 1, 1))
 
@@ -167,19 +167,19 @@ class LogicalTypeTest(unittest.TestCase):
         self.assertFalse(p.does_match(test_schema3, test_schema3))
 
         dt1 = datetime.datetime(2015, 5, 1)
-        self.assertEquals(p.convert(test_schema2, datetime.date(2015, 5, 1)), p.convert(test_schema2, dt1))
-        self.assertEquals(p.convert(test_schema2, datetime.datetime(2015, 5, 1, microsecond=123456, tzinfo=pytz.UTC)),
+        self.assertEqual(p.convert(test_schema2, datetime.date(2015, 5, 1)), p.convert(test_schema2, dt1))
+        self.assertEqual(p.convert(test_schema2, datetime.datetime(2015, 5, 1, microsecond=123456, tzinfo=pytz.UTC)),
                           1430438400123)
 
         offset_res = 1430452800123
-        self.assertEquals(
+        self.assertEqual(
             p.convert(test_schema2,
                       pytz.timezone('America/New_York').localize(datetime.datetime(2015, 5, 1, microsecond=123456))),
             offset_res)
         with self._exception():
             p.convert('123456')
 
-        self.assertEquals(
+        self.assertEqual(
             p.convert_back(test_schema2, test_schema2, p.convert(test_schema2, datetime.datetime(2016, 1, 1))),
             datetime.datetime(2016, 1, 1))
 

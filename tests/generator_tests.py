@@ -233,15 +233,15 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertIsInstance(instance.timestampMicrosField, datetime.datetime)
         self.assertIsInstance(instance.timestampMicrosFieldWithDefault, datetime.datetime)
 
-        self.assertEquals(instance.decimalFieldWithDefault, decimal.Decimal(10))
-        self.assertEquals(instance.dateFieldWithDefault, datetime.date(1970, 2, 12))
-        self.assertEquals(instance.timeMillisFieldWithDefault, datetime.time(second=42))
-        self.assertEquals(instance.timeMicrosFieldWithDefault, datetime.time(second=42))
+        self.assertEqual(instance.decimalFieldWithDefault, decimal.Decimal(10))
+        self.assertEqual(instance.dateFieldWithDefault, datetime.date(1970, 2, 12))
+        self.assertEqual(instance.timeMillisFieldWithDefault, datetime.time(second=42))
+        self.assertEqual(instance.timeMicrosFieldWithDefault, datetime.time(second=42))
 
-        self.assertEquals(
+        self.assertEqual(
             tzlocal.get_localzone().localize(instance.timestampMicrosFieldWithDefault).astimezone(pytz.UTC),
             datetime.datetime(1970, 1, 1, 0, 0, 42, tzinfo=pytz.UTC))
-        self.assertEquals(
+        self.assertEqual(
             tzlocal.get_localzone().localize(instance.timestampMillisFieldWithDefault).astimezone(pytz.UTC),
             datetime.datetime(1970, 1, 1, 0, 0, 42, tzinfo=pytz.UTC))
 
@@ -465,11 +465,11 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertTrue(hasattr(root_module, 'sample_recordClass'))
         record = root_module.sample_recordClass()
 
-        self.assertEquals(record.withDefault.field1, 42)
-        self.assertEquals(record.nullableWithDefault.field1, 42)
-        self.assertEquals(record.nullableRecordWithLogicalType.field1, datetime.date(1970, 2, 12))
-        self.assertEquals(record.nullableWithLogicalType, datetime.date(1970, 2, 12))
-        self.assertEquals(record.multiNullable, 42)
+        self.assertEqual(record.withDefault.field1, 42)
+        self.assertEqual(record.nullableWithDefault.field1, 42)
+        self.assertEqual(record.nullableRecordWithLogicalType.field1, datetime.date(1970, 2, 12))
+        self.assertEqual(record.nullableWithLogicalType, datetime.date(1970, 2, 12))
+        self.assertEqual(record.multiNullable, 42)
 
     def primitive_type_tester(self, schema_name):
         schema_json = self.read_schema(schema_name)

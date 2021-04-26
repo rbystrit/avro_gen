@@ -20,23 +20,23 @@ class AvroJsonTest(unittest.TestCase):
 
         for t, v in six.iteritems(primitives):
             test_schema = schema.PrimitiveSchema(t)
-            self.assertEquals(self.converter.to_json_object(v, test_schema), v)
-            self.assertEquals(self.converter.from_json_object(v, test_schema), v)
+            self.assertEqual(self.converter.to_json_object(v, test_schema), v)
+            self.assertEqual(self.converter.from_json_object(v, test_schema), v)
 
     def test_enum(self):
         test_schema = schema.EnumSchema('test_enum', None, ['A', 'B'], schema.Names())
-        self.assertEquals(self.converter.to_json_object('A', test_schema), 'A')
-        self.assertEquals(self.converter.from_json_object('B', test_schema), 'B')
+        self.assertEqual(self.converter.to_json_object('A', test_schema), 'A')
+        self.assertEqual(self.converter.from_json_object('B', test_schema), 'B')
 
     def test_fixed(self):
         test_schema = schema.FixedSchema('test_enum', None, 5, schema.Names())
-        self.assertEquals(self.converter.to_json_object(('A' * 5).encode('utf-8'), test_schema), ('A' * 5).encode('utf-8'))
-        self.assertEquals(self.converter.from_json_object(('B' * 5).encode('utf-8'), test_schema), ('B' * 5).encode('utf-8'))
+        self.assertEqual(self.converter.to_json_object(('A' * 5).encode('utf-8'), test_schema), ('A' * 5).encode('utf-8'))
+        self.assertEqual(self.converter.from_json_object(('B' * 5).encode('utf-8'), test_schema), ('B' * 5).encode('utf-8'))
 
     def test_array(self):
         test_schema = make_avsc_object({'type': 'array', 'items': 'int'})
-        self.assertEquals(self.converter.to_json_object([1, 2, 3], test_schema), [1, 2, 3])
-        self.assertEquals(self.converter.from_json_object([1, 2, 3], test_schema), [1, 2, 3])
+        self.assertEqual(self.converter.to_json_object([1, 2, 3], test_schema), [1, 2, 3])
+        self.assertEqual(self.converter.from_json_object([1, 2, 3], test_schema), [1, 2, 3])
 
     def test_map(self):
         test_schema = make_avsc_object({'type': 'map', 'values': 'int'})
@@ -61,8 +61,8 @@ class AvroJsonTest(unittest.TestCase):
         self.assertDictEqual(self.converter.to_json_object('a', test_schema), result1)
         self.assertDictEqual(self.converter.to_json_object(2, test_schema), result2)
 
-        self.assertEquals(self.converter.from_json_object(result1, test_schema), 'a')
-        self.assertEquals(self.converter.from_json_object(result2, test_schema), 2)
+        self.assertEqual(self.converter.from_json_object(result1, test_schema), 'a')
+        self.assertEqual(self.converter.from_json_object(result2, test_schema), 2)
 
     def test_record(self):
         test_schema = make_avsc_object({'type': 'record', 'name': 'test_record', 'fields': [
