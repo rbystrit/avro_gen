@@ -72,9 +72,13 @@ class GeneratorTestCase(unittest.TestCase):
             breakpoint()
 
     def test_dict_wrapper(self):
-        a = DictWrapper.construct({'hi': 'foo'})
-        b = DictWrapper.construct({'hi': 'foo'})
-        c = DictWrapper.construct({'hi': 'bar'})
+        class HiClass(DictWrapper):
+            def _restore_defaults(self):
+                self._inner_dict['hi'] = None
+
+        a = HiClass.construct({'hi': 'foo'})
+        b = HiClass.construct({'hi': 'foo'})
+        c = HiClass.construct({'hi': 'bar'})
 
         self.assertEqual(a, b)
         self.assertNotEqual(a, c)
