@@ -1,3 +1,4 @@
+from typing import Dict
 import os
 
 from avro import schema
@@ -407,11 +408,17 @@ def write_record_init(record, writer, use_logical_types):
     writer.write('\ndef __init__(self,')
     with writer.indent():
         delayed_lines = []
+        default_map: Dict[str, str] = {}
         for field in record.fields:  # type: schema.Field
             name = get_field_name(field, use_logical_types)
             ret_type_name = get_field_type_name(field.type, use_logical_types)
             default_type, nullable = find_type_of_default(field.type)
 
+            if not nullable and field.has_default:
+                # print(record.name, field.name, field.default)
+                default_map[name] = repr(field.default)
+                ret_type_name = f"Optional[{ret_type_name}]"
+                nullable = True
             if nullable:
                 delayed_lines.append(f'\n{name}: {ret_type_name}=None,')
             else:
@@ -428,7 +435,13 @@ def write_record_init(record, writer, use_logical_types):
 
         for field in record.fields:  # type: schema.Field
             name = get_field_name(field, use_logical_types)
-            writer.write(f'\nself.{name} = {name}')
+            if name in default_map:
+                writer.write(f'\nif {name} is None:')
+                writer.write(f'\n    self.{name} = {default_map[name]}')
+                writer.write(f'\nelse:')
+                writer.write(f'\n    self.{name} = {name}')
+            else:
+                writer.write(f'\nself.{name} = {name}')
 
     writer.write('\n\n@classmethod')
     writer.write(f'\ndef construct_with_defaults(cls) -> "{record.name}Class":')
