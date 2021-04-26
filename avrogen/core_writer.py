@@ -474,6 +474,11 @@ def write_enum(enum, writer):
             writer.write('# No docs available.')
 
         writer.write('\n\n')
+        symbolDocs = enum.other_props.get('symbolDocs', {})
         for field in enum.symbols:
+            if symbolDocs:
+                writer.write('\n')
+            if field in symbolDocs:
+                writer.write(f'"""{symbolDocs[field]}"""\n')
             writer.write('{name} = "{name}"\n'.format(name=field))
         writer.write('\n')
