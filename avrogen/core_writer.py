@@ -153,7 +153,6 @@ def {name}(self) -> {ret_type_name}:
     {get_docstring}
     return self._inner_dict.get('{raw_name}')  # type: ignore
 
-
 @{name}.setter
 def {name}(self, value: {ret_type_name}) -> None:
     {set_docstring}
@@ -399,8 +398,6 @@ def write_schema_record(record, writer, use_logical_types):
 
         write_record_init(record, writer, use_logical_types)
 
-        write_serialization_stubs(record, writer, use_logical_types)
-
         write_fields(record, writer, use_logical_types)
 
 
@@ -438,6 +435,7 @@ def write_record_init(record, writer, use_logical_types):
             name = get_field_name(field, use_logical_types)
             if name in default_map:
                 writer.write(f'\nif {name} is None:')
+                writer.write(f'\n    # default: {repr(field.default)}')
                 writer.write(f'\n    self.{name} = {default_map[name]}')
                 writer.write(f'\nelse:')
                 writer.write(f'\n    self.{name} = {name}')
@@ -456,18 +454,6 @@ def write_record_init(record, writer, use_logical_types):
     writer.write(f'\ndef _restore_defaults(self) -> None:')
     with writer.indent():
         write_defaults(record, writer, use_logical_types=use_logical_types)
-
-
-def write_serialization_stubs(record, writer, use_logical_types):
-    # writer.write(f'\n\n@classmethod')
-    # writer.write(f'\ndef from_obj(cls, obj: dict, tuples=False) -> "{record.name}Class":')
-    # with writer.indent():
-    #     writer.write('\n...')
-
-    # writer.write(f'\n\ndef to_obj(self, tuples=False) -> dict:')
-    # with writer.indent():
-    #     writer.write('\n...')
-    pass
 
 
 def write_enum(enum, writer):
