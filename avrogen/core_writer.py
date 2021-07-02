@@ -38,10 +38,10 @@ def clean_fullname(fullname):
     return fullname
 
 
-def convert_default(full_name, idx, do_json=True):
+def convert_default(idx, full_name=None, do_json=True):
     if do_json:
-        return (f'_json_converter.from_json_object({full_name}Class.RECORD_SCHEMA.field_map["{idx}"].default,'
-               + f' writers_schema={full_name}Class.RECORD_SCHEMA.field_map["{idx}"].type)')
+        return (f'_json_converter.from_json_object(self.RECORD_SCHEMA.field_map["{idx}"].default,'
+               + f' writers_schema=self.RECORD_SCHEMA.field_map["{idx}"].type)')
     else:
         return f'self.RECORD_SCHEMA.field_map["{idx}"].default'
 
@@ -63,8 +63,7 @@ def get_default(field, use_logical_types, my_full_name=None, f_name=None):
                                                 schema.RecordSchema)))
             return v
         elif isinstance(default_type, schema.RecordSchema):
-            class_name = my_full_name.split('.')[-1]
-            d = convert_default(full_name=class_name, idx=f_name, do_json=True)
+            d = convert_default(idx=f_name, do_json=True)
             return d
         elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
             d = convert_default(full_name=my_full_name, idx=f_name, do_json=False)
@@ -417,7 +416,8 @@ def write_record_init(record, writer, use_logical_types):
 
             if not nullable and field.has_default:
                 # print(record.name, field.name, field.default)
-                default_map[name] = repr(field.default)
+                default = get_default(field, use_logical_types, f_name=field.name)
+                default_map[name] = default
                 ret_type_name = f"Optional[{ret_type_name}]"
                 nullable = True
             if nullable:
