@@ -40,8 +40,8 @@ def clean_fullname(fullname):
 
 def convert_default(full_name, idx, do_json=True):
     if do_json:
-        return (f'_json_converter.from_json_object({full_name}Class.RECORD_SCHEMA.fields[{idx}].default,'
-               + f' writers_schema={full_name}Class.RECORD_SCHEMA.fields[{idx}].type)')
+        return (f'_json_converter.from_json_object({full_name}Class.RECORD_SCHEMA.field_map["{idx}"].default,'
+               + f' writers_schema={full_name}Class.RECORD_SCHEMA.field_map["{idx}"].type)')
     else:
         return f'self.RECORD_SCHEMA.field_map["{idx}"].default'
 
@@ -63,8 +63,9 @@ def get_default(field, use_logical_types, my_full_name=None, f_name=None):
                                                 schema.RecordSchema)))
             return v
         elif isinstance(default_type, schema.RecordSchema):
-            d = convert_default(idx=i, full_name=my_full_name, do_json=True)
-            return f'{field.name}Class({d})'
+            class_name = my_full_name.split('.')[-1]
+            d = convert_default(full_name=class_name, idx=f_name, do_json=True)
+            return d
         elif isinstance(default_type, (schema.PrimitiveSchema, schema.EnumSchema, schema.FixedSchema)):
             d = convert_default(full_name=my_full_name, idx=f_name, do_json=False)
             return d
