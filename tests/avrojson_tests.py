@@ -16,12 +16,16 @@ class AvroJsonTest(unittest.TestCase):
 
     def test_primitive_types(self):
         primitives = dict(int=1, float=2.0,
-                          string='3.0', bytes='4.0'.encode('utf-8'), boolean=True, long=5, double=6.0, null=None)
+                          string='3.0', bytes=(b'foo', 'foo'), boolean=True, long=5, double=6.0, null=None)
 
         for t, v in six.iteritems(primitives):
+            if isinstance(v, tuple):
+                v, expected = v
+            else:
+                v, expected = v, v
             test_schema = schema.PrimitiveSchema(t)
-            self.assertEqual(self.converter.to_json_object(v, test_schema), v)
-            self.assertEqual(self.converter.from_json_object(v, test_schema), v)
+            self.assertEqual(self.converter.to_json_object(v, test_schema), expected)
+            self.assertEqual(self.converter.from_json_object(expected, test_schema), v)
 
     def test_enum(self):
         test_schema = schema.EnumSchema('test_enum', None, ['A', 'B'], schema.Names())
