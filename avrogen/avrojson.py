@@ -80,6 +80,10 @@ class AvroJsonConverter(object):
             return ((isinstance(datum, dict) or isinstance(datum, DictWrapper)) and
                     False not in
                     [self.validate(f.type, datum.get(f.name), skip_logical_types) for f in expected_schema.fields])
+        elif not self.fastavro and schema_type == 'bytes':
+            # Specialization for bytes, which are encoded as strings in JSON.
+            if isinstance(datum, str):
+                return True
 
         return io_validate(expected_schema, datum)
 
@@ -150,6 +154,8 @@ class AvroJsonConverter(object):
         return result
 
     def _primitive_to_json(self, data_obj, writers_schema):
+        if not self.fastavro and isinstance(data_obj, bytes):
+            return data_obj.decode()
         return data_obj
 
     def _fixed_to_json(self, data_obj, writers_schema):
@@ -185,7 +191,7 @@ class AvroJsonConverter(object):
 
         advanced_count = 0
         for candidate_schema in writers_schema.schemas:
-            if not isinstance(candidate_schema, schema.PrimitiveSchema):
+            if candidate_schema.type != 'null':
                 advanced_count += 1
         if advanced_count <= 1:
             return True
@@ -260,6 +266,9 @@ class AvroJsonConverter(object):
         return result
 
     def _primitive_from_json(self, json_obj, writers_schema, readers_schema):
+        if not self.fastavro and writers_schema.type == 'bytes':
+            if isinstance(json_obj, str):
+                return json_obj.encode()
         return json_obj
 
     def _fixed_from_json(self, json_obj, writers_schema, readers_schema):
