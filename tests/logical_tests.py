@@ -12,10 +12,7 @@ import tzlocal
 import time
 import six
 
-if six.PY3:
-    make_avsc_object = schema.SchemaFromJSONData
-else:
-    make_avsc_object = schema.make_avsc_object
+make_avsc_object = schema.make_avsc_object
 
 class LogicalTypeTest(unittest.TestCase):
     @contextlib.contextmanager

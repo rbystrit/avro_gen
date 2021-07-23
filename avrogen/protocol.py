@@ -1,10 +1,7 @@
 import six
 import os
 
-if six.PY3:
-    from io import StringIO
-else:
-    from cStringIO import StringIO
+from io import StringIO
 
 from avro import protocol, schema
 
@@ -181,7 +178,7 @@ def write_protocol_preamble(writer, use_logical_types, custom_imports):
         writer.write('\nfrom avrogen import logical')
     writer.write('\n\ndef __get_protocol(file_name):')
     with writer.indent():
-        writer.write('\nproto = avro_protocol.Parse(__read_file(file_name)) if six.PY3 else avro_protocol.parse(__read_file(file_name))')
+        writer.write('\nproto = avro_protocol.parse(__read_file(file_name))')
         writer.write('\nreturn proto')
     writer.write('\n\nPROTOCOL = __get_protocol(os.path.join(os.path.dirname(__file__), "protocol.avpr"))')
 

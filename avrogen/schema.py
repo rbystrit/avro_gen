@@ -7,7 +7,7 @@ from avro import schema
 from io import StringIO
 
 
-from avro.schema import SchemaFromJSONData as make_avsc_object
+from avro.schema import make_avsc_object
 
 from .core_writer import generate_namespace_modules, clean_fullname
 from .tabbed_writer import TabbedWriter

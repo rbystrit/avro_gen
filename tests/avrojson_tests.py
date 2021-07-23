@@ -5,10 +5,7 @@ import unittest
 import six
 import datetime
 
-if six.PY3:
-    make_avsc_object = schema.SchemaFromJSONData
-else:
-    make_avsc_object = schema.make_avsc_object
+make_avsc_object = schema.make_avsc_object
 
 class AvroJsonTest(unittest.TestCase):
     converter = avrojson.AvroJsonConverter()
