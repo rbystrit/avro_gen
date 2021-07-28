@@ -1,3 +1,4 @@
+from avrogen.core_writer import find_type_of_default
 import collections
 import six
 
@@ -331,6 +332,8 @@ class AvroJsonConverter(object):
     def _record_from_json(self, json_obj, writers_schema, readers_schema):
         writer_fields = writers_schema.fields_dict if six.PY2 else writers_schema.field_map
 
+        input_keys = set(json_obj.keys())
+
         result = {}
         for field in readers_schema.fields:
             writers_field = writer_fields.get(field.name)
@@ -340,9 +343,17 @@ class AvroJsonConverter(object):
             else:
                 if field.name in json_obj:
                     field_value = self._generic_from_json(json_obj[field.name], writers_field.type, field.type)
+                    input_keys.remove(field.name)
                 else:
-                    field_value = self._generic_from_json(writers_field.default,
-                                                          writers_field.type, field.type) \
-                        if writers_field.has_default else None
+                    _, nullable = find_type_of_default(field.type)
+                    if writers_field.has_default:
+                        field_value = self._generic_from_json(writers_field.default,
+                                                            writers_field.type, field.type)
+                    elif nullable:
+                        field_value = None
+                    else:
+                        raise ValueError(f'{readers_schema.fullname} is missing required field: {field.name}')
             result[field.name] = field_value
+        if input_keys:
+            raise ValueError(f'{readers_schema.fullname} contains extra fields: {input_keys}')
         return self._instantiate_record(result, writers_schema, readers_schema)
