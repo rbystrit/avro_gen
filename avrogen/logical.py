@@ -10,8 +10,7 @@ import time
 import pytz
 import tzlocal
 
-if six.PY3:
-    long = int
+long = int
 
 EPOCH_DATE = datetime.date(1970, 1, 1)
 SECONDS_IN_DAY = 24 * 60 * 60

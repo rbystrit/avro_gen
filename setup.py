@@ -59,7 +59,10 @@ setup(
     package_data={
         'avrogen': ['py.typed'],
     },
-    install_requires=["avro >= 1.8.0 ; python_version<'3.0'",
-                      "avro_python3 >= 1.8.0 ; python_version>'3.0'",
-                      'six', 'tzlocal', 'pytz'],
+    install_requires=[
+        "avro>=1.8.0",
+        'six',
+        'tzlocal',
+        'pytz',
+    ],
 )

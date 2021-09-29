@@ -7,10 +7,7 @@ from .dict_wrapper import DictWrapper
 from avro import schema
 from avro import io
 
-if six.PY3:
-    io_validate = io.Validate
-else:
-    io_validate = io.validate
+io_validate = io.validate
 
 _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
 
@@ -50,8 +47,7 @@ class AvroJsonConverter(object):
                 # Match the type based on the declared schema.
                 data_schema = self._get_record_schema_if_available(datum)
                 for i, candidate_schema in enumerate(expected_schema.schemas):
-                    if candidate_schema.namespace == data_schema.namespace \
-                        and candidate_schema.name == data_schema.name:
+                    if candidate_schema.fullname == data_schema.fullname:
                         return self.validate(candidate_schema, datum)
 
             # If the union type is using a "name" to distinguish the type, we
@@ -97,7 +93,7 @@ class AvroJsonConverter(object):
         if writers_schema is None:
             raise Exception('At least one schema must be specified')
 
-        if not io.DatumReader.match_schemas(writers_schema, readers_schema):
+        if not writers_schema.match(readers_schema):
             raise io.SchemaResolutionException('Could not match schemas', writers_schema, readers_schema)
 
         return self._generic_from_json(json_obj, writers_schema, readers_schema)
@@ -117,7 +113,7 @@ class AvroJsonConverter(object):
 
     def _fullname(self, schema_):
         if isinstance(schema_, schema.NamedSchema):
-            return schema_.fullname if six.PY2 else schema_.fullname.lstrip('.')
+            return schema_.fullname.lstrip('.')
         return schema_.type
 
     def _get_record_schema_if_available(self, data_obj):
@@ -203,8 +199,7 @@ class AvroJsonConverter(object):
         data_schema = self._get_record_schema_if_available(data_obj)
         for i, candidate_schema in enumerate(writers_schema.schemas):
             # Check for exact matches first.
-            if data_schema and candidate_schema.namespace == data_schema.namespace \
-                and candidate_schema.name == data_schema.name:
+            if data_schema and candidate_schema.fullname == data_schema.fullname:
                 index_of_schema = i
                 break
 
@@ -234,7 +229,7 @@ class AvroJsonConverter(object):
         if (writers_schema.type not in ['union', 'error_union']
             and readers_schema.type in ['union', 'error_union']):
             for s in readers_schema.schemas:
-                if io.DatumReader.match_schemas(writers_schema, s):
+                if writers_schema.match(s):
                     return self._generic_from_json(json_obj, writers_schema, s)
             raise io.SchemaResolutionException('Schemas do not match', writers_schema, readers_schema)
 
@@ -330,7 +325,7 @@ class AvroJsonConverter(object):
         return decoded_record
 
     def _record_from_json(self, json_obj, writers_schema, readers_schema):
-        writer_fields = writers_schema.fields_dict if six.PY2 else writers_schema.field_map
+        writer_fields = writers_schema.fields_dict
 
         input_keys = set(json_obj.keys())
 

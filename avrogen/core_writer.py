@@ -4,11 +4,9 @@ import os
 from avro import schema
 from . import namespace as ns_
 from . import logical
-import six
 import keyword
 
-if six.PY3:
-    long = int
+long = int
 
 
 PRIMITIVE_TYPES = {
@@ -33,9 +31,7 @@ __PRIMITIVE_TYPE_MAPPING = {
 }
 
 def clean_fullname(fullname):
-    if six.PY3:
-        return fullname.lstrip('.')
-    return fullname
+    return fullname.lstrip('.')
 
 
 def convert_default(idx, full_name=None, do_json=True):
@@ -279,7 +275,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
     writer.write('from avrogen import avrojson\n')
     if use_logical_types:
         writer.write('from avrogen import logical\n')
-    writer.write('from avro.schema import RecordSchema, SchemaFromJSONData as make_avsc_object\n')
+    writer.write('from avro.schema import RecordSchema, make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
     writer.write('from typing import List, Dict, Union, Optional\n')
     writer.write('\n')
@@ -394,7 +390,7 @@ def write_schema_record(record, writer, use_logical_types):
             writer.write(f'"""{record.doc}"""')
         else:
             writer.write('# No docs available.')
-        writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (record.namespace + '.' + record.name))
+        writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (record.fullname))
 
         write_record_init(record, writer, use_logical_types)
 
