@@ -36,10 +36,10 @@ def clean_fullname(fullname):
 
 def convert_default(idx, full_name=None, do_json=True):
     if do_json:
-        return (f'_json_converter.from_json_object(self.RECORD_SCHEMA.field_map["{idx}"].default,'
-               + f' writers_schema=self.RECORD_SCHEMA.field_map["{idx}"].type)')
+        return (f'_json_converter.from_json_object(self.RECORD_SCHEMA.fields_dict["{idx}"].default,'
+               + f' writers_schema=self.RECORD_SCHEMA.fields_dict["{idx}"].type)')
     else:
-        return f'self.RECORD_SCHEMA.field_map["{idx}"].default'
+        return f'self.RECORD_SCHEMA.fields_dict["{idx}"].default'
 
 
 def get_default(field, use_logical_types, my_full_name=None, f_name=None):
