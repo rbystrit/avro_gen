@@ -9,6 +9,11 @@ from avro import io
 
 io_validate = io.validate
 
+try:
+    from avro.io import SchemaResolutionException, AvroTypeException
+except ImportError:
+    from avro.errors import SchemaResolutionException, AvroTypeException
+
 _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
 
 
@@ -94,7 +99,7 @@ class AvroJsonConverter(object):
             raise Exception('At least one schema must be specified')
 
         if not writers_schema.match(readers_schema):
-            raise io.SchemaResolutionException('Could not match schemas', writers_schema, readers_schema)
+            raise SchemaResolutionException('Could not match schemas', writers_schema, readers_schema)
 
         return self._generic_from_json(json_obj, writers_schema, readers_schema)
 
@@ -107,7 +112,7 @@ class AvroJsonConverter(object):
         assert isinstance(writers_schema, schema.Schema)
 
         if not self.validate(writers_schema, data_obj):
-            raise io.AvroTypeException(writers_schema, data_obj)
+            raise AvroTypeException(writers_schema, data_obj)
 
         return self._generic_to_json(data_obj, writers_schema)
 
@@ -209,7 +214,7 @@ class AvroJsonConverter(object):
                 if candidate_schema.type == 'boolean':
                     break
         if index_of_schema < 0:
-            raise io.AvroTypeException(writers_schema, data_obj)
+            raise AvroTypeException(writers_schema, data_obj)
         candidate_schema = writers_schema.schemas[index_of_schema]
         if candidate_schema.type == 'null':
             return None
@@ -231,7 +236,7 @@ class AvroJsonConverter(object):
             for s in readers_schema.schemas:
                 if writers_schema.match(s):
                     return self._generic_from_json(json_obj, writers_schema, s)
-            raise io.SchemaResolutionException('Schemas do not match', writers_schema, readers_schema)
+            raise SchemaResolutionException('Schemas do not match', writers_schema, readers_schema)
 
         result = None
         if writers_schema.type == 'null':

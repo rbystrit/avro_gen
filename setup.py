@@ -60,7 +60,7 @@ setup(
         'avrogen': ['py.typed'],
     },
     install_requires=[
-        "avro>=1.8.0",
+        "avro>=1.10",
         'six',
         'tzlocal',
         'pytz',
