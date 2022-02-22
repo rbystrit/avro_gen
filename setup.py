@@ -20,12 +20,12 @@ else:
 
 setup(
     name='avro-gen3',
-    version='0.7.1',
+    version='0.7.2',
 
     description='Avro record class and specific record reader generator',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/hsheth2/avro_gen',
+    url='https://github.com/acryldata/avro_gen',
     author='Harshal Sheth',
     author_email='hsheth2@gmail.com',
     license='License :: OSI Approved :: Apache Software License',
