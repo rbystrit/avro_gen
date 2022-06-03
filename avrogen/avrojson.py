@@ -329,7 +329,7 @@ class AvroJsonConverter(object):
             return self._make_type(self.schema_types[readers_name], decoded_record)
         return decoded_record
 
-    def _record_from_json(self, json_obj, writers_schema, readers_schema):
+    def _record_from_json(self, json_obj, writers_schema, readers_schema, fail_on_extra_fields=False):
         writer_fields = writers_schema.fields_dict
 
         input_keys = set(json_obj.keys())
@@ -354,6 +354,7 @@ class AvroJsonConverter(object):
                     else:
                         raise ValueError(f'{readers_schema.fullname} is missing required field: {field.name}')
             result[field.name] = field_value
-        if input_keys:
+        if input_keys and fail_on_extra_fields:
+            # only throw errors if there are fields that we do not know about and fail_on_extra_fields is set to True
             raise ValueError(f'{readers_schema.fullname} contains extra fields: {input_keys}')
         return self._instantiate_record(result, writers_schema, readers_schema)
