@@ -72,7 +72,7 @@ def get_default(field, use_logical_types, my_full_name=None, f_name=None):
         elif use_logical_types and default_type.props.get('logicalType') \
                 and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
             lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
-            return f'{default}'.format(default=lt.initializer())
+            return str(lt.initializer())
         elif isinstance(default_type, schema.PrimitiveSchema) and not default_type.props.get('logicalType'):
             d = get_primitive_field_initializer(default_type)
             return d
