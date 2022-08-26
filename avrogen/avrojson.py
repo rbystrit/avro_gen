@@ -176,10 +176,19 @@ class AvroJsonConverter(object):
         result = collections.OrderedDict()
 
         for field in writers_schema.fields:
-            result[field.name] = self._generic_to_json(
-                data_obj.get(field.name,
-                             self.from_json_object(field.default, field.type) if field.has_default else None),
-                field.type)
+            if field.has_default:
+                default = self.from_json_object(field.default, field.type)
+                obj = data_obj.get(field.name, default)
+
+                if obj is None and default is None:
+                    # If the field's defaults to none and the current value is none,
+                    # then we can skip emitting this field since the consumer will
+                    # automatically fill it.
+                    continue
+            else:
+                obj = data_obj.get(field.name)
+
+            result[field.name] = self._generic_to_json(obj, field.type)
         return result
     
     def _is_unambiguous_union(self, writers_schema) -> bool:
